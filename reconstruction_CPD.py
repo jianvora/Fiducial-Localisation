@@ -16,6 +16,7 @@ import numpy as np
 from sklearn.neighbors import NearestNeighbors
 from pycpd import affine_registration
 from functools import partial
+import scipy.ndimage as snd
 
 
 def getSurfaceVoxels(voxelData):
@@ -254,23 +255,36 @@ def visualize(iteration, error, X, Y, ax):
     plt.draw()
     print("iteration %d, error %.5f" % (iteration, error))
     plt.pause(0.001)
+
+def padwithzero(vector,pad_width,iaxis,kwargs):
+    vector[:pad_width[0]] = 0
+    vector[-pad_width[1]:] = 0
+    return vector
 	
 
 directory_ref = "/home/j_69/Fiducial Localization - MRI Scans/glass/Glass Scan Axial 1.25 mm/DICOM/PA1/ST1/SE2"
 data_ref = readDicomData(directory_ref)
 voxel_ndarray_ref = get3DRecon(data_ref)[0]
 ijk_to_xyz_ref = get3DRecon(data_ref)[1]
+
+voxel_ndarray_ref = np.lib.pad(voxel_ndarray_ref,20,padwithzero)
+
 surfaceVoxels_ref = getSurfaceVoxels(voxel_ndarray_ref)
 # surfaceVoxels = np.asarray(surfaceVoxels)
+
+##multi_slice_viewer(voxel_ndarray_ref)
+##plt.show()
+
 print len(surfaceVoxels_ref)
 
 ## reducing the number of points, for faster registartion
 
 
-surfaceVoxels_ref = surfaceVoxels_ref[np.random.choice(surfaceVoxels_ref.shape[0], 4000, replace = False)]
+surfaceVoxels_ref = surfaceVoxels_ref[np.random.choice(surfaceVoxels_ref.shape[0], 10000, replace = False)]
 
 view_pointcloud(surfaceVoxels_ref,color='y')
 plt.show()
+
 
 ##multi_slice_viewer(voxel_ndarray_ref)
 ##plt.show()
@@ -278,7 +292,8 @@ plt.show()
 
  ### Using Rawfloating image, as patient data missing for this view
 
-directory_flo1 = "/home/j_69/Fiducial Localization - MRI Scans/glass/Glass Scan Coronal 0.9 mm/DICOM/PA1/ST1/SE2" ## edit this accordingly
+
+directory_flo1 = "/home/j_69/Fiducial Localization - MRI Scans/glass/Glass Scan Sagittal 0.9 mm/DICOM/PA1/ST1/SE2" ## edit this accordingly
 slices = 256 ## edit this accordingly
 
 mu = []
@@ -296,80 +311,28 @@ lower_thresh = 0
 voxel_ndarray_flo1[voxel_ndarray_flo1 > upper_thresh] = 1
 voxel_ndarray_flo1[voxel_ndarray_flo1 <= lower_thresh] = 0
 
-surfaceVoxels_flo1 = getSurfaceVoxels(voxel_ndarray_flo1)
-print len(surfaceVoxels_flo1)
+voxel_ndarray_flo1 = np.lib.pad(voxel_ndarray_flo1,20,padwithzero)
+
+voxel_ndarray_flo1m = snd.rotate(voxel_ndarray_flo1, -90, axes = (1,2), cval = 0,reshape = True) ## perform a 180 degree rotation
+
+multi_slice_viewer(voxel_ndarray_flo1m)
+plt.show()
+
+surfaceVoxels_flo1m = getSurfaceVoxels(voxel_ndarray_flo1m)
+print len(surfaceVoxels_flo1m)
 
 ## reducing the number of points, for faster registartion
 
-surfaceVoxels_flo1 = surfaceVoxels_flo1[np.random.choice(surfaceVoxels_flo1.shape[0], 4000, replace = False)]
+surfaceVoxels_flo1m = surfaceVoxels_flo1m[np.random.choice(surfaceVoxels_flo1m.shape[0], 10000, replace = False)]
 
-
-view_pointcloud(surfaceVoxels_flo1,color='b')
+view_pointcloud(surfaceVoxels_flo1m,color='y')
 plt.show()
-
 
 print("Applying CPD Affine registration")
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 callback = partial(visualize, ax=ax)
-reg = affine_registration(surfaceVoxels_ref, surfaceVoxels_flo1,maxIterations=200)
+reg = affine_registration(surfaceVoxels_ref, surfaceVoxels_flo1m,maxIterations=100)
 reg.register(callback)
 plt.show()
 
-
-
-"""
-print("Applying ICP...")
-
-ijkmat = icp(surfaceVoxels_ref,surfaceVoxels_flo1, max_iterations = 40)
-print(ijkmat)
-
-"""
-
-"""
-voxel_ndarray_flo1 = snd.rotate(voxel_ndarray_ref,15)
-
-print("Transformation performed on reference image")
-
-surfaceVoxels_flo1 = getSurfaceVoxels(voxel_ndarray_flo1)
-# surfaceVoxels = np.asarray(surfaceVoxels)
-arr = np.delete(surfaceVoxels_flo1,1,0)
-print surfaceVoxels_flo1
-
-
-##multi_slice_viewer(voxel_ndarray_flo1)
-##plt.show()
-"""
-
-
-"""
-directory_flo1 = "/home/j_69/Fiducial Localization - MRI Scans/glass/Glass Scan Sagittal 0.9 mm/DICOM/PA1/ST1/SE2"
-data_flo1 = readDicomData(directory_flo1)
-voxel_ndarray_flo1 = get3DRecon(data_flo1)[0]
-ijk_to_xyz_flo1 = get3DRecon(data_flo1)[1]
-surfaceVoxels_flo1 = getSurfaceVoxels(voxel_ndarray_flo1)
-# surfaceVoxels = np.asarray(surfaceVoxels)
-print surfaceVoxels_flo1
-print(ijk_to_xyz_flo1)
-"""
-
-
-
-
-
-"""
-f = open(directory+"/reconstructed.txt",'w')
-
-
-for i in range(len(voxel_ndarray)):
-	for j in range(len(voxel_ndarray[i])):
-		for k in range(len(voxel_ndarray[i][j])):
-			f.write(str(voxel_ndarray[i][j][k]))
-			f.write(" ")
-		f.write(",")
-	f.write("\n")
-
-f.close()
-"""
-## multi_slice_viewer(voxel_ndarray)
-##plt.show()
