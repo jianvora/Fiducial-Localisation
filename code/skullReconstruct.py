@@ -22,6 +22,15 @@ def readDicomData(path):
     return data
 
 
+def makeCompatible(dicomData, prec=5):
+    for i in range(len(dicomData)):
+        a = dicomData[i].ImageOrientationPatient
+        a[0] = round(a[0], prec)
+        a[1] = round(a[1], prec)
+        a[2] = round(a[2], prec)
+        a[3] = round(a[3], prec)
+        dicomData[i].ImageOrientationPatient = a
+
 def get3DRecon(data):
 
     RefDs = data[0]
@@ -32,8 +41,11 @@ def get3DRecon(data):
         voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(data)
     except dicom_numpy.DicomImportException as e:
         # invalid DICOM data
-        raise NameError(
-            'Unable to do 3D reconstruction. Slice missing? or incompatible slice data?')
+        print("Handling incompatible dicom slices")
+        makeCompatible(data, prec=5)
+        voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(data)
+        # raise NameError(
+        #     'Unable to do 3D reconstruction. Slice missing? or incompatible slice data?')
 
     return voxel_ndarray, ConstPixelSpacing
 
