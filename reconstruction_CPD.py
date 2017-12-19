@@ -17,6 +17,18 @@ from sklearn.neighbors import NearestNeighbors
 from pycpd import affine_registration
 from functools import partial
 import scipy.ndimage as snd
+from numpy.linalg import inv
+
+
+def makeCompatible(dicomData, prec=5):
+    for i in range(len(dicomData)):
+        a = dicomData[i].ImageOrientationPatient
+        a[0] = round(a[0], prec)
+        a[1] = round(a[1], prec)
+        a[2] = round(a[2], prec)
+        a[3] = round(a[3], prec)
+        dicomData[i].ImageOrientationPatient = a
+
 
 
 def getSurfaceVoxels(voxelData):
@@ -140,6 +152,12 @@ def icp(A, B, init_pose=None, max_iterations=20, tolerance=0.001):
     if init_pose is not None:
         src = np.dot(init_pose, src)
 
+    ## display the point cloud, after initial transformation
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    visualize(0,0,src[:m,:].T,dst[:m,:].T,ax=ax)
+    plt.show()
+
     prev_error = 0
 
     for i in range(max_iterations):
@@ -157,6 +175,7 @@ def icp(A, B, init_pose=None, max_iterations=20, tolerance=0.001):
         if np.abs(prev_error - mean_error) < tolerance:
             break
         prev_error = mean_error
+
 
     # calculate final transformation
     T,_,_ = best_fit_transform(A, src[:m,:].T)
@@ -184,27 +203,20 @@ def readDicomData(path):
 	return data
 
 def get3DRecon(data):
-	RefDs = data[0]
-	ConstPixelSpacing = (float(RefDs.PixelSpacing[0]), float(RefDs.PixelSpacing[1]), float(RefDs.SliceThickness))
-
-	try:
-	    voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(data)
-	except dicom_numpy.DicomImportException as e:
-	    # invalid DICOM data
-	    raise NameError('Unable to do 3D reconstruction. Slice missing? or incompatible slice data?')
-	# arbitrary for now, can be set to different values for CT scan as in Hounsfield unit,
-	# bone is from +700 to +3000
-	
-	
-	upper_thresh = 0
-	lower_thresh = 0
-
-	voxel_ndarray[voxel_ndarray > upper_thresh] = 1
-	voxel_ndarray[voxel_ndarray <= lower_thresh] = 0
-	
-	
-
-	return (voxel_ndarray,ijk_to_xyz)
+    RefDs = data[0]
+    data = np.delete(data,0,0)
+    ConstPixelSpacing = (float(RefDs.PixelSpacing[0]), float(RefDs.PixelSpacing[1]), float(RefDs.SliceThickness))
+    try:
+        voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(data)
+    except dicom_numpy.DicomImportException as e:
+        print("Handling incompatible dicom slices")
+        makeCompatible(data, prec=5)
+        voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(data)
+    upper_thresh = 0
+    lower_thresh = 0
+    voxel_ndarray[voxel_ndarray > upper_thresh] = 1
+    voxel_ndarray[voxel_ndarray <= lower_thresh] = 0
+    return (voxel_ndarray,ijk_to_xyz)
 
 def remove_keymap_conflicts(new_keys_set):
     for prop in plt.rcParams:
@@ -241,6 +253,18 @@ def next_slice(ax):
     ax.index = (ax.index + 1) % volume.shape[0]
     ax.images[0].set_array(volume[ax.index])
 
+def view_pointcloud_3(A,B,C):
+    fig  = plt.figure()
+    ax = fig.add_subplot(111,projection='3d')
+    ax.scatter(A[:,0],A[:,1],A[:,2],color='red')
+    ax.scatter(B[:,0],B[:,1],B[:,2],color='blue')
+    ax.scatter(C[:,0],C[:,1],C[:,2],color='green')
+
+def view_pointcloud_2(A,B):
+    fig  = plt.figure()
+    ax = fig.add_subplot(111,projection='3d')
+    ax.scatter(A[:,0],A[:,1],A[:,2],color='red')
+    ax.scatter(B[:,0],B[:,1],B[:,2],color='blue')
 
 def view_pointcloud(surfaceVoxels,color):
 	fig = plt.figure()
@@ -261,78 +285,103 @@ def padwithzero(vector,pad_width,iaxis,kwargs):
     vector[-pad_width[1]:] = 0
     return vector
 	
+def apply_affine(A,init_pose):
+    m = A.shape[1]
+    src = np.ones((m+1,A.shape[0]))
+    src[:m,:] = np.copy(A.T)
+    if init_pose is not None:
+        src = np.dot(init_pose, src)
+    return src[:m,:].T
+    
 
-directory_ref = "/home/j_69/Fiducial Localization - MRI Scans/glass/Glass Scan Axial 1.25 mm/DICOM/PA1/ST1/SE2"
+## Reference Image ##
+directory_ref = "/home/j_69/Fiducial Localization - MRI Scans/pvc/Sequential Scan/DICOM/PA1/ST1/SE2"
 data_ref = readDicomData(directory_ref)
 voxel_ndarray_ref = get3DRecon(data_ref)[0]
 ijk_to_xyz_ref = get3DRecon(data_ref)[1]
-
 voxel_ndarray_ref = np.lib.pad(voxel_ndarray_ref,20,padwithzero)
-
+multi_slice_viewer(voxel_ndarray_ref)
+plt.show()
 surfaceVoxels_ref = getSurfaceVoxels(voxel_ndarray_ref)
-# surfaceVoxels = np.asarray(surfaceVoxels)
-
-##multi_slice_viewer(voxel_ndarray_ref)
-##plt.show()
-
+surfaceVoxels_ref_red = surfaceVoxels_ref[np.random.choice(surfaceVoxels_ref.shape[0], 4000, replace = False)]
 print len(surfaceVoxels_ref)
 
-## reducing the number of points, for faster registartion
-
-
-surfaceVoxels_ref = surfaceVoxels_ref[np.random.choice(surfaceVoxels_ref.shape[0], 10000, replace = False)]
-
-view_pointcloud(surfaceVoxels_ref,color='y')
-plt.show()
-
-
-##multi_slice_viewer(voxel_ndarray_ref)
-##plt.show()
-
-
- ### Using Rawfloating image, as patient data missing for this view
-
-
-directory_flo1 = "/home/j_69/Fiducial Localization - MRI Scans/glass/Glass Scan Sagittal 0.9 mm/DICOM/PA1/ST1/SE2" ## edit this accordingly
-slices = 256 ## edit this accordingly
-
-mu = []
-arry = []
-for i in range(1,slices):
-    mu.append(mudicom.load(directory_flo1+"/IM"+str(i)))
-    arry.append(mu[i-1].image.numpy)
-voxel_ndarray_flo1 = np.array(arry)
-
-voxel_ndarray_flo1 = np.array(5*voxel_ndarray_flo1-3024,dtype='float32')
-
-upper_thresh = 0
-lower_thresh = 0
-
-voxel_ndarray_flo1[voxel_ndarray_flo1 > upper_thresh] = 1
-voxel_ndarray_flo1[voxel_ndarray_flo1 <= lower_thresh] = 0
-
+## Floating Image 1 ## 
+directory_flo1 = "/home/j_69/Fiducial Localization - MRI Scans/pvc/Sequential Scan/DICOM/PA1/ST1/SE5" ## edit this accordingly
+data_flo1 = readDicomData(directory_flo1)
+voxel_ndarray_flo1 = get3DRecon(data_flo1)[0]
+ijk_to_xyz_flo1 = get3DRecon(data_flo1)[1]
 voxel_ndarray_flo1 = np.lib.pad(voxel_ndarray_flo1,20,padwithzero)
-
-voxel_ndarray_flo1m = snd.rotate(voxel_ndarray_flo1, -90, axes = (1,2), cval = 0,reshape = True) ## perform a 180 degree rotation
-
-multi_slice_viewer(voxel_ndarray_flo1m)
+multi_slice_viewer(voxel_ndarray_flo1)
 plt.show()
+surfaceVoxels_flo1 = getSurfaceVoxels(voxel_ndarray_flo1)
+surfaceVoxels_flo1_red = surfaceVoxels_flo1[np.random.choice(surfaceVoxels_flo1.shape[0], 4000, replace = False)]
+print len(surfaceVoxels_flo1)
 
-surfaceVoxels_flo1m = getSurfaceVoxels(voxel_ndarray_flo1m)
-print len(surfaceVoxels_flo1m)
-
-## reducing the number of points, for faster registartion
-
-surfaceVoxels_flo1m = surfaceVoxels_flo1m[np.random.choice(surfaceVoxels_flo1m.shape[0], 10000, replace = False)]
-
-view_pointcloud(surfaceVoxels_flo1m,color='y')
+## Floating Image 2 ## 
+directory_flo2 = "/home/j_69/Fiducial Localization - MRI Scans/pvc/Sequential Scan/DICOM/PA1/ST1/SE4" ## edit this accordingly
+data_flo2 = readDicomData(directory_flo2)
+voxel_ndarray_flo2 = get3DRecon(data_flo2)[0]
+ijk_to_xyz_flo2 = get3DRecon(data_flo2)[1]
+voxel_ndarray_flo2 = np.lib.pad(voxel_ndarray_flo2,20,padwithzero)
+multi_slice_viewer(voxel_ndarray_flo2)
 plt.show()
+surfaceVoxels_flo2 = getSurfaceVoxels(voxel_ndarray_flo2)
+surfaceVoxels_flo2_red = surfaceVoxels_flo2[np.random.choice(surfaceVoxels_flo2.shape[0], 4000, replace = False)]
+print len(surfaceVoxels_flo2)
 
-print("Applying CPD Affine registration")
+
+
+### Applying CPD Registration of Floating Image 1 on Reference ###
+
+print("Calculating CPD Affine registration for Floating 1 on Reference")
+init_transform = np.matmul(ijk_to_xyz_flo1,inv(ijk_to_xyz_ref))
+surfaceVoxels_flo1m_red = apply_affine(surfaceVoxels_flo1_red, init_transform)
+surfaceVoxels_flo1m = apply_affine(surfaceVoxels_flo1,init_transform)
+
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 callback = partial(visualize, ax=ax)
-reg = affine_registration(surfaceVoxels_ref, surfaceVoxels_flo1m,maxIterations=100)
-reg.register(callback)
+reg = affine_registration(surfaceVoxels_ref_red, surfaceVoxels_flo1m_red,maxIterations=100)
+Treg = reg.register(callback)
+TY = Treg[0]
+affine_mat = np.concatenate((Treg[1],np.atleast_2d(Treg[2]).T),axis = 1)
+T1 = np.concatenate((affine_mat,np.array([[0,0,0,1]])),axis = 0)
+print (affine_mat)
+print("")
+print("You may now please exit the visulization.")
 plt.show()
 
+### Applying CPD Registration of Floating Image 2 on Reference ###
+
+print("Calculating CPD Affine registration for Floating 2 on Reference")
+init_transform = np.matmul(ijk_to_xyz_flo2,inv(ijk_to_xyz_ref))
+surfaceVoxels_flo2m_red = apply_affine(surfaceVoxels_flo2_red, init_transform)
+surfaceVoxels_flo2m = apply_affine(surfaceVoxels_flo2,init_transform)
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+callback = partial(visualize, ax=ax)
+reg = affine_registration(surfaceVoxels_ref_red, surfaceVoxels_flo2m_red,maxIterations=100)
+Treg = reg.register(callback)
+TY = Treg[0]
+affine_mat = np.concatenate((Treg[1],np.atleast_2d(Treg[2]).T),axis = 1)
+T2 = np.concatenate((affine_mat,np.array([[0,0,0,1]])),axis = 0)
+print (affine_mat)
+print("")
+print("You may now please exit the visulization.")
+plt.show()
+
+
+### Displaying the three views at a time ###
+print("Displaying all the three views...")
+
+surfaceVoxels_flo1_trans = apply_affine(surfaceVoxels_flo1m,T1)
+surfaceVoxels_flo2_trans = apply_affine(surfaceVoxels_flo2m, T2)
+surfaceVoxels_ref_red = surfaceVoxels_ref[np.random.choice(surfaceVoxels_ref.shape[0], 50000, replace = False)]
+surfaceVoxels_flo1_redt = surfaceVoxels_flo1_trans[np.random.choice(surfaceVoxels_flo1_trans.shape[0], 50000, replace = False)]
+surfaceVoxels_flo2_redt = surfaceVoxels_flo2_trans[np.random.choice(surfaceVoxels_flo2_trans.shape[0], 50000, replace = False)]
+view_pointcloud_3(surfaceVoxels_ref_red,surfaceVoxels_flo1_redt,surfaceVoxels_flo2_redt)
+plt.show()
+
+### The End ###
