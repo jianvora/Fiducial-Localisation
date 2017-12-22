@@ -3,13 +3,17 @@ import dicom
 import os
 from natsort import natsorted
 import numpy as np
+from skimage import measure
+
+ConstPixelSpacing = (1, 1, 1)
+
 
 def readDicomData(path):
     lstFilesDCM = []
     # may want to exclude the first dicom image in some files
     for root, directory, fileList in os.walk(path):
         for filename in fileList:
-            if filename == ".DS_Store" or filename == "IM1":
+            if filename == ".DS_Store":  # or filename == "IM1":
                 continue
             lstFilesDCM.append(filename)
     ''' 
@@ -25,15 +29,18 @@ def readDicomData(path):
 def makeCompatible(dicomData, prec=5):
     for i in range(len(dicomData)):
         a = dicomData[i].ImageOrientationPatient
+        print a
         a[0] = round(a[0], prec)
         a[1] = round(a[1], prec)
         a[2] = round(a[2], prec)
         a[3] = round(a[3], prec)
         dicomData[i].ImageOrientationPatient = a
 
-def get3DRecon(data):
 
+def get3DRecon(data):
+    global ConstPixelSpacing
     RefDs = data[0]
+
     ConstPixelSpacing = (float(RefDs.PixelSpacing[0]), float(
         RefDs.PixelSpacing[1]), float(RefDs.SliceThickness))
 
@@ -60,3 +67,37 @@ def applyThreshold(voxelData):
     voxel[voxel <= lower_thresh] = 0
 
     return voxel
+
+
+def genFiducialModel():
+    global ConstPixelSpacing
+    innerD = 4  # mm
+    outerD = 11  # mm
+    height = 2  # mm
+
+    mPixel = np.uint8(np.round(outerD / ConstPixelSpacing[0]))
+    if mPixel % 2 != 0:
+        mPixel += 2
+    else:
+        mPixel += 1
+    mLayer = np.uint8(np.round(height / ConstPixelSpacing[2]) + 1)
+
+    fiducial = np.zeros((mPixel, mPixel, mLayer))
+    for l in range(mLayer):
+        for i in range(mPixel):
+            for j in range(mPixel):
+                d = np.sqrt(((i - (mPixel - 1) * 0.5)*ConstPixelSpacing[0])**2 +
+                            ((j - (mPixel - 1) * 0.5)*ConstPixelSpacing[1])**2)
+                if d <= outerD * 0.5 and d >= innerD * 0.5 and l < mLayer - 1:
+                    fiducial[i, j, l] = 1
+
+    vertFiducial, fFiducial, nFiducial, valFiducial = measure.marching_cubes_lewiner(
+        fiducial, 0, ConstPixelSpacing)
+
+    vertFiducial = vertFiducial - np.sum(
+        vertFiducial[vertFiducial[:, 2] <= 0],
+        axis=0) / vertFiducial[vertFiducial[:, 2] <= 0].shape[0]
+
+    # vertFiducial = np.append(vertFiducial, np.array([[0, 0, 0]]), axis=0)
+    # nFiducial = np.append(nFiducial, np.array([[0, 0, 1]]), axis=0)
+    return vertFiducial, fFiducial, nFiducial

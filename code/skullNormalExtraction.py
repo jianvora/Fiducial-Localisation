@@ -10,10 +10,12 @@ def findSurfaceNormals(surfaceVoxels, voxelData, ConstPixelSpacing):
 
     surfaceVoxels = np.float64(surfaceVoxels) * ConstPixelSpacing
 
-    nbrs = NearestNeighbors(n_neighbors=1).fit(verts)
+    nbrs = NearestNeighbors(n_neighbors=1, algorithm='kd_tree').fit(verts)
     distances, indices = nbrs.kneighbors(surfaceVoxels)
+    surfaceNormals = normals[indices[:]]
+    surfaceNormals = surfaceNormals.reshape(
+        surfaceNormals.shape[0], surfaceNormals.shape[2])
 
-    surfaceNormals = normals[list(indices), :]
     return surfaceNormals
 
 

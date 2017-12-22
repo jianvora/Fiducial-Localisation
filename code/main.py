@@ -3,18 +3,20 @@
 from skullFindSurface import *
 from skullReconstruct import *
 from skullNormalExtraction import *
+from skullFindFIducial import *
+from visualiseTools import *
 import time
 from mayavi import mlab
 import copy
-# # import matplotlib
-# # matplotlib.use("TkAgg")
 # from mpl_toolkits.mplot3d import Axes3D
 # import matplotlib.pyplot as plt
 
+ConstPixelSpacing = (1, 1, 1)
+
 
 def main():
+    global ConstPixelSpacing
     start_time = time.time()
-
     # change to required path to dicom folder
     PathDicom = "../../2016.06.27 PVC Skull Model/Sequential Scan/DICOM/PA1/ST1/SE2"
 
@@ -27,30 +29,40 @@ def main():
     print("---- %s seconds -----" % (time.time() - start_time))
 
     surfaceVoxels = getSurfaceVoxels(voxelDataThresh)
+    surfaceVoxelCoord = surfaceVoxels * ConstPixelSpacing
     # only plotting 1/10th of points to speed up rendering
     # the points are represented as spheres hence skull surface may look bubbly
-    mlab.points3d(surfaceVoxels[::10, 0] * ConstPixelSpacing[0], surfaceVoxels[::10, 1]
-                  * ConstPixelSpacing[1], surfaceVoxels[::10, 2] * ConstPixelSpacing[2])
-    # mlab.plot3d(np.expand_dims(surfaceVoxels[:,0],axis=1),np.expand_dims(surfaceVoxels[:,1],axis=1),np.expand_dims(surfaceVoxels[:,2],axis=1))
-
     print("---- %s seconds -----" % (time.time() - start_time))
 
     normals = findSurfaceNormals(copy.deepcopy(
         surfaceVoxels), voxelData, ConstPixelSpacing)
 
+    # print normals.shape
+
     print("---- %s seconds -----" % (time.time() - start_time))
 
-    normals = np.squeeze(normals)
-    mlab.quiver3d(surfaceVoxels[::100, 0] * ConstPixelSpacing[0], surfaceVoxels[::100, 1] * ConstPixelSpacing[1], surfaceVoxels[::100, 2] * ConstPixelSpacing[2],
-                  normals[::100, 0], normals[::100, 1], normals[::100, 2])
-
+    # normals = np.squeeze(normals)
+    # visualiseNormals(verts, normals, ConstPixelSpacing, res=100)
     # ------ uncomment this to view surface mesh ----------
-    # vert,_, faces = getSurfaceMesh(voxelData, ConstPixelSpacing)
-    # mlab.triangular_mesh(vert[:,0],vert[:,1],vert[:,2],faces)
-    # -----------------------------------------------------
+    # vert, normals, faces = getSurfaceMesh(voxelData, ConstPixelSpacing)
+    # mlab.triangular_mesh(vert[:, 0], vert[:, 1], vert[:, 2], faces)
+    # print("---- %s seconds -----" % (time.time() - start_time))
+
+    i = 20  # decrease this to sample more points
+    neighbor = getNeighborVoxel(surfaceVoxelCoord, surfaceVoxelCoord[::i], r=6)
+    # neighbor = getNeighborVoxel(vert, vert[::i], r=6)
+
     print("---- %s seconds -----" % (time.time() - start_time))
 
-    mlab.show()
+    checkFiducial(surfaceVoxelCoord,
+                  surfaceVoxelCoord[::i], normals[::i], neighbor)
+    # checkFiducial(vert, vert[::i], normals[::i], neighbor)
+
+    print("---- %s seconds -----" % (time.time() - start_time))
+    # mlab.points3d(surfaceVoxelCoord[:, 0], surfaceVoxelCoord[:, 1],
+    #               surfaceVoxelCoord[:, 2])
+    # -----------------------------------------------------
+    # mlab.show()
     # -------- uncomment this to view in matplotlib -----------
     # fig = plt.figure()
     # ax = fig.add_subplot(111, projection='3d')
