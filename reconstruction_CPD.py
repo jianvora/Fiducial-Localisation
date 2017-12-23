@@ -397,8 +397,8 @@ def reconstruct_views(directory_ref,directory_flo1,directory_flo2,save_directory
     Average_model_sum = VoxelData_flo1+VoxelData_flo2+voxel_ndarray_ref
     Average_model = Average_model_sum/3
 
-    multi_slice_viewer(Average_model)
-    plt.show()
+    #multi_slice_viewer(Average_model)
+    #plt.show()
 
     #save_directory = "/home/j_69/Fiducial Localization - MRI Scans/pvc/Sequential Scan/DICOM/PA1/ST1/SE2/results/Final.txt"
     print(len(Average_model))
