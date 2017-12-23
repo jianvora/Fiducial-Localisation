@@ -273,12 +273,12 @@ def view_pointcloud(surfaceVoxels,color):
 
 
 def visualize(iteration, error, X, Y, ax):
-    plt.cla()
-    ax.scatter(X[:,0],  X[:,1], X[:,2], color='red')
-    ax.scatter(Y[:,0],  Y[:,1], Y[:,2], color='blue')
-    plt.draw()
+    #plt.cla()
+    #ax.scatter(X[:,0],  X[:,1], X[:,2], color='red')
+    #ax.scatter(Y[:,0],  Y[:,1], Y[:,2], color='blue')
+    #plt.draw()
     print("iteration %d, error %.5f" % (iteration, error))
-    plt.pause(0.001)
+    #plt.pause(0.001)
 
 def padwithzero(vector,pad_width,iaxis,kwargs):
     vector[:pad_width[0]] = 0
@@ -300,105 +300,105 @@ def resample_isotropic(A,B):
     Atrans = np.array(Atrans,dtype='float32')
     return Atrans
 
+
+def reconstruct_views(directory_ref,directory_flo1,directory_flo2,save_directory)
 ## Reference Image ##
-directory_ref = "/home/j_69/Fiducial Localization - MRI Scans/pvc/Sequential Scan/DICOM/PA1/ST1/SE2"
-data_ref = readDicomData(directory_ref)
-voxel_ndarray_ref = get3DRecon(data_ref)[0]
-ijk_to_xyz_ref = get3DRecon(data_ref)[1]
-voxel_ndarray_ref = np.lib.pad(voxel_ndarray_ref,20,padwithzero)
-#multi_slice_viewer(voxel_ndarray_ref)
-#plt.show()
-surfaceVoxels_ref = getSurfaceVoxels(voxel_ndarray_ref)
-surfaceVoxels_ref_red = surfaceVoxels_ref[np.random.choice(surfaceVoxels_ref.shape[0], 4000, replace = False)]
-print len(surfaceVoxels_ref)
 
-## Floating Image 1 ## 
-directory_flo1 = "/home/j_69/Fiducial Localization - MRI Scans/pvc/Sequential Scan/DICOM/PA1/ST1/SE5" ## edit this accordingly
-data_flo1 = readDicomData(directory_flo1)
-voxel_ndarray_flo1 = get3DRecon(data_flo1)[0]
-ijk_to_xyz_flo1 = get3DRecon(data_flo1)[1]
-voxel_ndarray_flo1 = np.lib.pad(voxel_ndarray_flo1,20,padwithzero)
-#multi_slice_viewer(voxel_ndarray_flo1)
-#plt.show()
-surfaceVoxels_flo1 = getSurfaceVoxels(voxel_ndarray_flo1)
-surfaceVoxels_flo1_red = surfaceVoxels_flo1[np.random.choice(surfaceVoxels_flo1.shape[0], 4000, replace = False)]
-print len(surfaceVoxels_flo1)
+    #directory_ref = "/home/j_69/Fiducial Localization - MRI Scans/pvc/Sequential Scan/DICOM/PA1/ST1/SE2"
+    data_ref = readDicomData(directory_ref)
+    voxel_ndarray_ref = get3DRecon(data_ref)[0]
+    ijk_to_xyz_ref = get3DRecon(data_ref)[1]
+    voxel_ndarray_ref = np.lib.pad(voxel_ndarray_ref,20,padwithzero)
+    #multi_slice_viewer(voxel_ndarray_ref)
+    #plt.show()
+    surfaceVoxels_ref = getSurfaceVoxels(voxel_ndarray_ref)
+    surfaceVoxels_ref_red = surfaceVoxels_ref[np.random.choice(surfaceVoxels_ref.shape[0], 4000, replace = False)]
+    print len(surfaceVoxels_ref)
 
-## Floating Image 2 ## 
-directory_flo2 = "/home/j_69/Fiducial Localization - MRI Scans/pvc/Sequential Scan/DICOM/PA1/ST1/SE4" ## edit this accordingly
-data_flo2 = readDicomData(directory_flo2)
-voxel_ndarray_flo2 = get3DRecon(data_flo2)[0]
-ijk_to_xyz_flo2 = get3DRecon(data_flo2)[1]
-voxel_ndarray_flo2 = np.lib.pad(voxel_ndarray_flo2,20,padwithzero)
-#multi_slice_viewer(voxel_ndarray_flo2)
-#plt.show()
-surfaceVoxels_flo2 = getSurfaceVoxels(voxel_ndarray_flo2)
-surfaceVoxels_flo2_red = surfaceVoxels_flo2[np.random.choice(surfaceVoxels_flo2.shape[0], 4000, replace = False)]
-print len(surfaceVoxels_flo2)
+    ## Floating Image 1 ## 
+    #directory_flo1 = "/home/j_69/Fiducial Localization - MRI Scans/pvc/Sequential Scan/DICOM/PA1/ST1/SE5" ## edit this accordingly
+    data_flo1 = readDicomData(directory_flo1)
+    voxel_ndarray_flo1 = get3DRecon(data_flo1)[0]
+    ijk_to_xyz_flo1 = get3DRecon(data_flo1)[1]
+    voxel_ndarray_flo1 = np.lib.pad(voxel_ndarray_flo1,20,padwithzero)
+    #multi_slice_viewer(voxel_ndarray_flo1)
+    #plt.show()
+    surfaceVoxels_flo1 = getSurfaceVoxels(voxel_ndarray_flo1)
+    surfaceVoxels_flo1_red = surfaceVoxels_flo1[np.random.choice(surfaceVoxels_flo1.shape[0], 4000, replace = False)]
+    print len(surfaceVoxels_flo1)
 
-
-
-### Applying CPD Registration of Floating Image 1 on Reference ###
-
-print("Calculating CPD Affine registration for Floating 1 on Reference")
-init_transform = np.matmul(ijk_to_xyz_flo1,inv(ijk_to_xyz_ref))
-surfaceVoxels_flo1m_red = apply_affine(surfaceVoxels_flo1_red, init_transform)
-surfaceVoxels_flo1m = apply_affine(surfaceVoxels_flo1,init_transform)
-
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-callback = partial(visualize, ax=ax)
-reg = affine_registration(surfaceVoxels_ref_red, surfaceVoxels_flo1m_red,maxIterations=100)
-Treg = reg.register(callback)
-TY = Treg[0]
-affine_mat = np.concatenate((Treg[1],np.atleast_2d(Treg[2]).T),axis = 1)
-T1 = np.concatenate((affine_mat,np.array([[0,0,0,1]])),axis = 0)
-print (affine_mat)
-print("")
-print("You may now please exit the visulization.")
-#plt.show()
-
-### Applying CPD Registration of Floating Image 2 on Reference ###
-
-print("Calculating CPD Affine registration for Floating 2 on Reference")
-init_transform = np.matmul(ijk_to_xyz_flo2,inv(ijk_to_xyz_ref))
-surfaceVoxels_flo2m_red = apply_affine(surfaceVoxels_flo2_red, init_transform)
-surfaceVoxels_flo2m = apply_affine(surfaceVoxels_flo2,init_transform)
-
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-callback = partial(visualize, ax=ax)
-reg = affine_registration(surfaceVoxels_ref_red, surfaceVoxels_flo2m_red,maxIterations=100)
-Treg = reg.register(callback)
-TY = Treg[0]
-affine_mat = np.concatenate((Treg[1],np.atleast_2d(Treg[2]).T),axis = 1)
-T2 = np.concatenate((affine_mat,np.array([[0,0,0,1]])),axis = 0)
-print (affine_mat)
-print("")
-print("You may now please exit the visulization.")
-#plt.show()
+    ## Floating Image 2 ## 
+    #directory_flo2 = "/home/j_69/Fiducial Localization - MRI Scans/pvc/Sequential Scan/DICOM/PA1/ST1/SE4" ## edit this accordingly
+    data_flo2 = readDicomData(directory_flo2)
+    voxel_ndarray_flo2 = get3DRecon(data_flo2)[0]
+    ijk_to_xyz_flo2 = get3DRecon(data_flo2)[1]
+    voxel_ndarray_flo2 = np.lib.pad(voxel_ndarray_flo2,20,padwithzero)
+    #multi_slice_viewer(voxel_ndarray_flo2)
+    #plt.show()
+    surfaceVoxels_flo2 = getSurfaceVoxels(voxel_ndarray_flo2)
+    surfaceVoxels_flo2_red = surfaceVoxels_flo2[np.random.choice(surfaceVoxels_flo2.shape[0], 4000, replace = False)]
+    print len(surfaceVoxels_flo2)
 
 
-### Displaying the three views at a time ###
-print("Displaying all the three views...")
-### The Avergage Model ###
 
-## resampling floating 1 and floating 2 images
-voxel_ndarray_ref = np.array(voxel_ndarray_ref,dtype='float32')
-VoxelDataflo1_resampled = resample_isotropic(voxel_ndarray_flo1, voxel_ndarray_ref)
-VoxelDataflo2_resampled = resample_isotropic(voxel_ndarray_flo2, voxel_ndarray_ref)
+    ### Applying CPD Registration of Floating Image 1 on Reference ###
 
-VoxelData_flo1 = nd.affine_transform(VoxelDataflo1_resampled,matrix = T1[:3,:3], offset = T1[:3,3])
-VoxelData_flo2 = nd.affine_transform(VoxelDataflo2_resampled, matrix = T2[:3,:3], offset = T2[:3,3])
+    print("Calculating CPD Affine registration for Floating 1 on Reference")
+    init_transform = np.matmul(ijk_to_xyz_flo1,inv(ijk_to_xyz_ref))
+    surfaceVoxels_flo1m_red = apply_affine(surfaceVoxels_flo1_red, init_transform)
+    surfaceVoxels_flo1m = apply_affine(surfaceVoxels_flo1,init_transform)
 
-Average_model_sum = VoxelData_flo1+VoxelData_flo2+voxel_ndarray_ref
-Average_model = Average_model_sum/3
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    callback = partial(visualize, ax=ax)
+    reg = affine_registration(surfaceVoxels_ref_red, surfaceVoxels_flo1m_red,maxIterations=100)
+    Treg = reg.register(callback)
+    TY = Treg[0]
+    affine_mat = np.concatenate((Treg[1],np.atleast_2d(Treg[2]).T),axis = 1)
+    T1 = np.concatenate((affine_mat,np.array([[0,0,0,1]])),axis = 0)
+    print (affine_mat)
+    print("")
+    print("You may now please exit the visulization.")
+    #plt.show()
 
-multi_slice_viewer(Average_model)
-plt.show()
+    ### Applying CPD Registration of Floating Image 2 on Reference ###
 
-save_directory = "/home/j_69/Fiducial Localization - MRI Scans/pvc/Sequential Scan/DICOM/PA1/ST1/SE2/results/Final.txt"
-print(len(Average_model))
+    print("Calculating CPD Affine registration for Floating 2 on Reference")
+    init_transform = np.matmul(ijk_to_xyz_flo2,inv(ijk_to_xyz_ref))
+    surfaceVoxels_flo2m_red = apply_affine(surfaceVoxels_flo2_red, init_transform)
+    surfaceVoxels_flo2m = apply_affine(surfaceVoxels_flo2,init_transform)
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    callback = partial(visualize, ax=ax)
+    reg = affine_registration(surfaceVoxels_ref_red, surfaceVoxels_flo2m_red,maxIterations=100)
+    Treg = reg.register(callback)
+    TY = Treg[0]
+    affine_mat = np.concatenate((Treg[1],np.atleast_2d(Treg[2]).T),axis = 1)
+    T2 = np.concatenate((affine_mat,np.array([[0,0,0,1]])),axis = 0)
+    print (affine_mat)
+    print("")
+    print("You may now please exit the visulization.")
+    #plt.show()
 
 
-### The End ###
+    ### Displaying the three views at a time ###
+    print("Displaying all the three views...")
+    ### The Avergage Model ###
+
+    ## resampling floating 1 and floating 2 images
+    voxel_ndarray_ref = np.array(voxel_ndarray_ref,dtype='float32')
+    VoxelDataflo1_resampled = resample_isotropic(voxel_ndarray_flo1, voxel_ndarray_ref)
+    VoxelDataflo2_resampled = resample_isotropic(voxel_ndarray_flo2, voxel_ndarray_ref)
+
+    VoxelData_flo1 = nd.affine_transform(VoxelDataflo1_resampled,matrix = T1[:3,:3], offset = T1[:3,3])
+    VoxelData_flo2 = nd.affine_transform(VoxelDataflo2_resampled, matrix = T2[:3,:3], offset = T2[:3,3])
+
+    Average_model_sum = VoxelData_flo1+VoxelData_flo2+voxel_ndarray_ref
+    Average_model = Average_model_sum/3
+
+    multi_slice_viewer(Average_model)
+    plt.show()
+
+    #save_directory = "/home/j_69/Fiducial Localization - MRI Scans/pvc/Sequential Scan/DICOM/PA1/ST1/SE2/results/Final.txt"
+    print(len(Average_model))
