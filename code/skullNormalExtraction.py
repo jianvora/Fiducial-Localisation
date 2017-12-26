@@ -23,3 +23,14 @@ def getSurfaceMesh(voxelData, ConstPixelSpacing):
     verts, faces, normals, values = measure.marching_cubes_lewiner(
         voxelData, 0, ConstPixelSpacing)
     return verts, normals, faces
+
+
+def getOutwardNormals(normals, surfels)
+# Takes in all normals and returns only outward normals for the skull
+# Returns a point roughly at the center of the skull
+    mid = np.average(surfels, 0)
+    diff_coord = surfels - mid
+
+    outward_normals = normals[np.sum(diff_coord * normals, 1) > 0]
+
+    return outward_normals
