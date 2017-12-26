@@ -32,5 +32,6 @@ def getOutwardNormals(normals, surfels)
     diff_coord = surfels - mid
 
     outward_normals = normals[np.sum(diff_coord * normals, 1) > 0]
+    outer_surfels = surfels[np.sum(diff_coord * normals, 1) > 0]
 
-    return outward_normals
+    return outward_normals, outer_surfels
