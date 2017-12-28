@@ -3,61 +3,16 @@ from scipy.spatial import cKDTree, distance
 from skimage import measure
 from sklearn.neighbors import NearestNeighbors
 from mayavi import mlab
-import matplotlib.pyplot as plt
 from skullReconstruct import *
+import matplotlib.pyplot as plt
+import copy
+import time
+
 
 vFiducial = np.array([])
 fFiducial = np.array([])
-ConstPixelSpacing = (1, 1, 1)
+ConstPixelSpacing = (1.0, 1.0, 1.0)
 
-
-# def rotatePC(vert, normal, theta, phi):
-#     rotationMatrix = np.array([[[np.cos(t) * np.cos(p), np.cos(t) * np.sin(p), np.sin(t)],
-#                                 [-np.sin(p), np.cos(p), 0],
-#                                 [-np.sin(t) * np.cos(p), -np.sin(t) * np.sin(p), np.cos(t)]]
-#                                for p, t in zip(phi, theta)], dtype=np.float64)
-
-#     # print rot[0:2]
-#     rotatedPatches = np.array([np.matmul(rot, v.T).T for rot,
-#                                v in zip(rotationMatrix, vert)])
-#     # rotated_normal = np.matmul(rot, normal.T)
-#     return rotatedPatches
-
-def apply_affine(A, init_pose):
-    m = A.shape[1]
-    src = np.ones((m + 1, A.shape[0]))
-    src[:m, :] = np.copy(A.T)
-    if init_pose is not None:
-        src = np.dot(init_pose, src)
-    return src[:m, :].T
-
-def find_init_transfo(evec1, evec2):
-    e_cross = np.cross(evec1, evec2)
-    e_cross1 = e_cross[0]
-    e_cross2 = e_cross[1]
-    e_cross3 = e_cross[2]
-    i = np.identity(3)
-    v = np.zeros((3, 3))
-    v[1, 0] = e_cross3
-    v[2, 0] = -e_cross2
-    v[0, 1] = -e_cross3
-    v[2, 1] = e_cross1
-    v[0, 2] = e_cross2
-    v[1, 2] = -e_cross1
-    v2 = np.dot(v, v)
-    c = np.dot(evec1, evec2)
-    # will not work in case angle of rotation is exactly 180 degrees
-    R = i + v + (v2 / (1 + c))
-    T = np.identity(4)
-    T[0:3, 0:3] = R
-    T = np.transpose(T)
-    R = np.transpose(R)
-    #com = [img.resolution[0]*len(img)/2,img.resolution[1]*len(img[0])/2,img.resolution[2]*len(img[0][0])/2]
-    [tx, ty, tz] = [0, 0, 0]
-    T[0, 3] = tx
-    T[1, 3] = ty
-    T[2, 3] = tz
-    return T
 
 def getNeighborVoxel(pointCloud, points, r):
     kdt = cKDTree(pointCloud)
@@ -65,45 +20,357 @@ def getNeighborVoxel(pointCloud, points, r):
     return neighbor
 
 # function to compare point clouds u and v
+def nearest_neighbor(src, dst):
+    '''
+    Find the nearest (Euclidean) neighbor in dst for each point in src
+    Input:
+        src: Nxm array of points
+        dst: Nxm array of points
+    Output:
+        distances: Euclidean distances of the nearest neighbor
+        indices: dst indices of the nearest neighbor
+    '''
+
+    ## assert src.shape == dst.shape
+
+    neigh = NearestNeighbors(n_neighbors=1)
+    neigh.fit(dst)
+    distances, indices = neigh.kneighbors(src, return_distance=True)
+    return distances.ravel(), indices.ravel()
 
 
-# def comparePC(u, v):
-#     # dist = max(distance.directed_hausdorff(u, v)[0],
-#     #            distance.directed_hausdorff(v, u)[0])
-#     nbrs = NearestNeighbors(n_neighbors=1, algorithm='kd_tree').fit(v)
-#     distances, _ = nbrs.kneighbors(u)
-#     cost = np.matmul(distances.T, distances)
-#     return cost
+
+def best_fit_transform(A, B):
+    '''
+    Calculates the least-squares best-fit transform that maps corresponding points A to B in m spatial dimensions
+    Input:
+      A: Nxm numpy array of corresponding points
+      B: Nxm numpy array of corresponding points
+    Returns:
+      T: (m+1)x(m+1) homogeneous transformation matrix that maps A on to B
+      R: mxm rotation matrix
+      t: mx1 translation vector
+    '''
+
+    ##assert A.shape == B.shape
+
+    # get number of dimensions
+    m = A.shape[1]
+
+    # translate points to their centroids
+    centroid_A = np.mean(A, axis=0)
+    centroid_B = np.mean(B, axis=0)
+    AA = A - centroid_A
+    BB = B - centroid_B
+
+    # rotation matrix
+    H = np.dot(AA.T, BB)
+    U, S, Vt = np.linalg.svd(H)
+    R = np.dot(Vt.T, U.T)
+
+    # special reflection case
+    if np.linalg.det(R) < 0:
+       Vt[m-1,:] *= -1
+       R = np.dot(Vt.T, U.T)
+
+    # translation
+    t = centroid_B.T - np.dot(R,centroid_A.T)
+
+    # homogeneous transformation
+    T = np.identity(m+1)
+    T[:m, :m] = R
+    T[:m, m] = t
+
+    return T, R, t
 
 
-def genPHI(patch, size=15):
-    res = 1
-    size *= res
-    if size % 2 == 0:
-        size += 1
 
-    center = np.uint8(size / 2)
-    patch += (center, center, 0)
-    depthMap = np.ones((size, size)) * (-100)
 
-    for i in range(patch.shape[0]):
-        depthMap[np.uint8(patch[i, 0] * res), np.uint8(patch[i, 1] * res)] = max(
-            (depthMap[np.uint8(patch[i, 0] * res), np.uint8(patch[i, 1] * res)]), (patch[i, 2]))
-    depthMap[depthMap == (-100)] = 0
+def icp(A, B, init_pose=None, max_iterations=20, tolerance=0.001):
+    '''
+    The Iterative Closest Point method: finds best-fit transform that maps points A on to points B
+    Input:
+        A: Nxm numpy array of source mD points
+        B: Nxm numpy array of destination mD point
+        init_pose: (m+1)x(m+1) homogeneous transformation
+        max_iterations: exit algorithm after max_iterations
+        tolerance: convergence criteria
+    Output:
+        T: final homogeneous transformation that maps A on to B
+        distances: Euclidean distances (errors) of the nearest neighbor
+        i: number of iterations to converge
+    '''
+
+    ## assert A.shape == B.shape
+
+    # get number of dimensions
+    m = A.shape[1]
+
+    # make points homogeneous, copy them to maintain the originals
+    src = np.ones((m+1,A.shape[0]))
+    dst = np.ones((m+1,B.shape[0]))
+    src[:m,:] = np.copy(A.T)
+    dst[:m,:] = np.copy(B.T)
+
+    # apply the initial pose estimation
+    if init_pose is not None:
+        src = np.dot(init_pose, src)
+
+    ## display the point cloud, after initial transformation
     
-    return depthMap
+    prev_error = 0
+    error_arr = []
+    for i in range(max_iterations):
+        # find the nearest neighbors between the current source and destination points
+        distances, indices = nearest_neighbor(src[:m,:].T, dst[:m,:].T)
 
-def checkFiducial(pointCloud, poi, normals, neighbor):
-    global vFiducial, fFiducial
+        # compute the transformation between the current source and nearest destination points
+        T,_,_ = best_fit_transform(src[:m,:].T, dst[:m,indices].T)
+
+        # update the current source
+        src = np.dot(T, src)
+
+        # check error
+        mean_error = np.mean(distances)
+        error_arr.append(mean_error)
+        if np.abs(prev_error - mean_error) < tolerance:
+            break
+        prev_error = mean_error
+
+
+    # calculate final transformation
+    T,_,_ = best_fit_transform(A, src[:m,:].T)
+    min_error = np.array(error_arr).min()
+    
+    return T, min_error/len(distances), i
+
+def apply_affine(A,init_pose):
+    m = A.shape[1]
+    src = np.ones((m+1,A.shape[0]))
+    src[:m,:] = np.copy(A.T)
+    if init_pose is not None:
+        src = np.dot(init_pose, src)
+    return src[:m,:].T
+   
+def find_init_transfo(evec1,evec2):
+    e_cross = np.cross(evec1,evec2)
+    e_cross1 = e_cross[0]
+    e_cross2 = e_cross[1]
+    e_cross3 = e_cross[2]
+    i = np.identity(3)
+    v = np.zeros((3,3))
+    v[1,0] = e_cross3
+    v[2,0] = -e_cross2
+    v[0,1] = -e_cross3
+    v[2,1] = e_cross1
+    v[0,2] = e_cross2
+    v[1,2] = -e_cross1
+    v2 = np.dot(v,v)
+    c = np.dot(evec1,evec2)
+    R = i + v + (v2/(1+c)) ## will not work in case angle of rotation is exactly 180 degrees
+    T = np.identity(4)
+    T[0:3,0:3] = R
+    T = np.transpose(T)
+    R = np.transpose(R)
+    #com = [img.resolution[0]*len(img)/2,img.resolution[1]*len(img[0])/2,img.resolution[2]*len(img[0][0])/2]
+    [tx,ty,tz] = [0,0,0]
+    T[0,3] = tx
+    T[1,3] = ty
+    T[2,3] = tz
+    return T
+
+def genFiducialModel(surfaceVoxelCoord, normals, point, PixelSpacing):
+    point = np.float64(point)*PixelSpacing
+    neighbor = getNeighborVoxel(
+        surfaceVoxelCoord, point, r=4.8)
+    neighbor = np.array(neighbor)
+    patch = surfaceVoxelCoord[neighbor]
+    neigh = NearestNeighbors(n_neighbors=4)
+    neigh.fit(patch)
+    distances, indices = neigh.kneighbors(
+        point.reshape(1,-1), return_distance=True)
+    center = patch[indices][0, 0]
+    orignal_patch = copy.deepcopy(patch)
+    patch -= center
+    point -= center
+
+    norm = normals[neighbor[indices]].reshape(-1,3)
+    norm = np.sum(norm,axis=0)/4
+    norm = norm.reshape(1,-1)
+
+    T = find_init_transfo(np.array([0, 0, 1]), copy.deepcopy(norm[0]))
+    patch = apply_affine(patch, T)
+    alignedNorm = apply_affine(copy.deepcopy(norm), T)
+    return patch,alignedNorm[0],orignal_patch
+"""
+def genFiducialModel_old(PixelSpacing):
+    innerD = 4  # mm
+    outerD = 11  # mm
+    height = 2  # mm
+
+    mPixel = np.uint8(np.round(outerD / PixelSpacing[0]))
+    if mPixel % 2 != 0:
+        mPixel += 2
+    else:
+        mPixel += 1
+    mLayer = np.uint8(np.round(height / PixelSpacing[2]) + 1)
+
+    fiducial = np.zeros((mPixel, mPixel, mLayer))
+    for l in range(mLayer):
+        for i in range(mPixel):
+            for j in range(mPixel):
+                d = np.sqrt(((i - (mPixel - 1) * 0.5)*PixelSpacing[0])**2 +
+                            ((j - (mPixel - 1) * 0.5)*PixelSpacing[1])**2)
+                if d <= outerD * 0.5 and d >= innerD * 0.5 and l < mLayer - 1:
+                    fiducial[i, j, l] = 1
+
+    vertFiducial, fFiducial, nFiducial, valFiducial = measure.marching_cubes_lewiner(
+        fiducial, 0, PixelSpacing)
+
+    vertFiducial = vertFiducial - np.sum(
+        vertFiducial[vertFiducial[:, 2] <= 0],
+        axis=0) / vertFiducial[vertFiducial[:, 2] <= 0].shape[0]
+
+    # vertFiducial = np.append(vertFiducial, np.array([[0, 0, 0]]), axis=0)
+    # nFiducial = np.append(nFiducial, np.array([[0, 0, 1]]), axis=0)
+    return vertFiducial, fFiducial, nFiducial
+"""
+"""
+def genFiducialModel_old(PixelSpacing):
+    innerD = 4  # mm
+    outerD = 14 * PixelSpacing[0]  # mm
+    height = 2  # mm
+    print outerD
+    mPixel = np.uint8(np.round(outerD / PixelSpacing[0]))
+    if mPixel % 2 != 0:
+        mPixel += 16
+    else:
+        mPixel += 15
+    # mLayer = np.uint8(np.round(height / PixelSpacing[2]) + 1)
+    mLayer = height / PixelSpacing[2]
+    # print height / PixelSpacing[2]
+
+    fiducial = np.zeros((mPixel, mPixel, int(mLayer) + 2))
+    for l in range(int(mLayer)):
+        for i in range(mPixel):
+            for j in range(mPixel):
+                d = np.sqrt(((i - (mPixel - 1) * 0.5) * PixelSpacing[0])**2 +
+                            ((j - (mPixel - 1) * 0.5) * PixelSpacing[1])**2)
+                if d <= outerD * 0.5 and d >= innerD * 0.5 and l <= mLayer:
+                    fiducial[i, j, l] = 1
+                elif d > (outerD * 0.5) and d < ((outerD * 0.5) + 1) and l <= mLayer:
+                    fiducial[i, j, l] = 1 - (d - (outerD * 0.5))
+                elif d < innerD * 0.5 and d < ((innerD * 0.5) - 1) and l <= mLayer:
+                    fiducial[i, j, l] = 1 + (d - (innerD * 0.5))
+                elif l > mLayer and l < mLayer + 1 and d <= outerD * 0.5 and d >= innerD * 0.5:
+                    fiducial[i, j, l] = 1 - (l - mLayer)
+
+    # fiducial = np.insert(fiducial, 0, np.ones((mPixel, mPixel)), axis=2)
+    vertFiducial, fFiducial, nFiducial, valFiducial = measure.marching_cubes_lewiner(
+        fiducial, 0, ConstPixelSpacing)
+
+    vertFiducial = vertFiducial - np.sum(
+        vertFiducial[vertFiducial[:, 2] <= 0],
+        axis=0) / vertFiducial[vertFiducial[:, 2] <= 0].shape[0]
+
+    # vertFiducial = np.append(vertFiducial, np.array([[0, 0, 0]]), axis=0)
+    # nFiducial = np.append(nFiducial, np.array([[0, 0, 1]]), axis=0)
+    # mlab.triangular_mesh(
+    # vertFiducial[:, 0], vertFiducial[:, 1], vertFiducial[:, 2], fFiducial)
+    # mlab.show()
+    return vertFiducial, fFiducial, nFiducial
+"""
+
+def genFiducialModel_old(PixelSpacing):
+    global ConstPixelSpacing
+    ConstPixelSpacing = PixelSpacing
+    innerD = 4  # mm
+    outerD = 14 * ConstPixelSpacing[0]  # mm
+    height = 2  # mm
+    print outerD
+    mPixel = np.uint8(np.round(outerD / ConstPixelSpacing[0]))
+    if mPixel % 2 != 0:
+        mPixel += 16
+    else:
+        mPixel += 15
+    # mLayer = np.uint8(np.round(height / ConstPixelSpacing[2]) + 1)
+    mLayer = height / ConstPixelSpacing[2]
+    # print height / ConstPixelSpacing[2]
+
+    fiducial = np.zeros((mPixel, mPixel, int(mLayer) + 2))
+    for l in range(fiducial.shape[2]):
+        for i in range(mPixel):
+            for j in range(mPixel):
+                d = np.sqrt(((i - (mPixel - 1) * 0.5) * ConstPixelSpacing[0])**2 +
+                            ((j - (mPixel - 1) * 0.5) * ConstPixelSpacing[1])**2)
+                if d <= outerD * 0.5 and d >= innerD * 0.5 and l <= mLayer:
+                    fiducial[i, j, l] = 1
+                elif d > (outerD * 0.5) and d < ((outerD * 0.5) + 1) and l <= mLayer:
+                    fiducial[i, j, l] = 1 - (d - (outerD * 0.5))
+                elif d < innerD * 0.5 and d < ((innerD * 0.5) - 1) and l <= mLayer:
+                    fiducial[i, j, l] = 1 + (d - (innerD * 0.5))
+                # elif l > mLayer and l < mLayer + 1 and d <= outerD * 0.5 and d >= innerD * 0.5:
+                #     fiducial[i, j, l] = 1 - (l - mLayer)
+    disk = np.zeros((fiducial.shape[0], fiducial.shape[1]))
+    for i in range(fiducial.shape[0]):
+        for j in range(fiducial.shape[1]):
+            d = np.sqrt(((i - (mPixel - 1) * 0.5) * ConstPixelSpacing[0])**2 +
+                        ((j - (mPixel - 1) * 0.5) * ConstPixelSpacing[1])**2)
+            if d <= innerD * 0.5:
+                disk[i, j] = 1
+            # elif d > innerD * 0.5 and d < ((innerD * 0.5) + 1) and l <= mLayer:
+                    # fiducial[i, j, l] = 1 - (d - (innerD * 0.5))
+    x, y = np.where(disk==1)
+    z = np.zeros(x.size)
+    x = np.float64(x)*ConstPixelSpacing[0]
+    y = np.float64(y)*ConstPixelSpacing[1]
+    x -= np.sum(x)/x.size
+    y -= np.sum(y)/y.size
+    vert = np.stack([x,y,z],axis=1)
+
+    # fiducial = np.insert(fiducial, 0, np.ones((mPixel, mPixel)), axis=2)
+    vertFiducial, fFiducial, nFiducial, valFiducial = measure.marching_cubes_lewiner(
+        fiducial, 0, ConstPixelSpacing)
+
+    vertFiducial = vertFiducial - np.sum(
+        vertFiducial[vertFiducial[:, 2] <= 0],
+        axis=0) / vertFiducial[vertFiducial[:, 2] <= 0].shape[0]
+    vertFiducial = np.append(vertFiducial, vert, axis=0)
+    # vertFiducial = np.append(vertFiducial, np.array([[0, 0, 0]]), axis=0)
+    # nFiducial = np.append(nFiducial, np.array([[0, 0, 1]]), axis=0)
+    # mlab.triangular_mesh(
+    # vertFiducial[:, 0], vertFiducial[:, 1], vertFiducial[:, 2], fFiducial)
+    # mlab.points3d(vertFiducial[:, 0], vertFiducial[:, 1], vertFiducial[:, 2])
+    # mlab.points3d(x,y,z,color=(0,1,0))
+    # mlab.show()
+    return vertFiducial, fFiducial, nFiducial
+
+
+
+def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
+    global vFiducial, fFiducial,ConstPixelSpacing
     start_time = time.time()
+    ConstPixelSpacing = PixelSpacing
 
-    patches = np.array([pointCloud[lst] for lst in neighbor])
+    #patches = np.array([pointCloud[lst] for lst in neighbor])
     # all patches are translated to origin(or normalised) by subtracting
     # the coordinate of point around which the patch is taken
-    normPatches = np.array([patches[i] - poi[i] for i in range(len(poi))])
+    #normPatches = np.array([patches[i] - poi[i] for i in range(len(poi))])
 
     if vFiducial.size == 0:
-        vFiducial = genFiducialModel(pointCloud, normals)
+        #vFiducial,_,_ = genFiducialModel(pointCloud, normalstotal,np.array([385,201,3*97]), ConstPixelSpacing)
+        vFiducial,_,_ = genFiducialModel_old(ConstPixelSpacing)
+    alignedPatches = []
+    patches =  []
+    for i in range(len(poi)):
+        algiP, aligN, P = genFiducialModel(pointCloud, normalstotal, poi[i], ConstPixelSpacing)
+        alignedPatches.append(algiP)
+        patches.append(P)
+        if(i%20 == 0):
+            print("POI "+str(i)+" "),
+            print(time.time()-start_time)
+    patches = np.array(patches) ## contains the orignal patch
+    alignedPatches = np.array(alignedPatches) ## contains the transformed patch
 
     """
     phi = np.arctan(normals[:, 1] / normals[:, 0])
@@ -114,82 +381,68 @@ def checkFiducial(pointCloud, poi, normals, neighbor):
     alignedPatches = rotatePC(normPatches.copy(), normals.copy(), theta, phi)
 
     """
-    print("---- %s seconds -----" % (time.time() - start_time))
-
+    """
     alignedPatches = []
+    alignedNormal = []
     for i in range(len(poi)):
-        affine_T = find_init_transfo(normals[i], np.array([0, 0, 1]))
-        alignedPatches.append(np.array(apply_affine(normPatches[i], affine_T)))
+        affine_T = find_init_transfo(np.array([0,0,1]),normals[i])
+        alignedPatches.append(np.array(apply_affine(normPatches[i],affine_T)))
+        alignedNormal.append(np.array(apply_affine(copy.deepcopy(normals[i]).reshape(1,-1),affine_T)))
     alignedPatches = np.array(alignedPatches)
 
-    print("---- %s seconds -----" % (time.time() - start_time))
-
+    """
     cost = []
 
+    count = 0
     for i in range(len(poi)):
-        if(i % 20 == 0):
+        if(i%200 == 0):
             print("ICP: "),
             print(i)
-        if(len(alignedPatches[i]) > 50):
-            cost.append(
-                icp(alignedPatches[i], vFiducial, max_iterations=10)[1])
-
+        if(len(alignedPatches[i])>400):
+            cost.append(icp(alignedPatches[i], vFiducial,max_iterations=1)[1])
+        else:
+            count += 1
+            cost.append(100)  ## a very high value
     print("END OF ICP")
+    print(str(count)+ " of small point clouds detected")
+    #cost = np.array([nearest_neighbor(vFiducial, alignedPatches[i])
+                     #for i in range(len(poi))])
+    
 
     cost_sorted = np.sort(cost)
-    print(cost_sorted)
     print("")
     print("")
+    for i in range(40):
+        print(cost_sorted[i]),
+        print(" "),
+        print(cost.index(cost_sorted[i])),
+        print(" "),
+        print(alignedPatches[i].size)
 
-    print (str(cost_sorted[0]) + " " + str(cost_sorted[1]) + " " + str(
-        cost_sorted[2]) + " " + str(cost_sorted[3]) + " " + str(cost_sorted[4]))
+    """
+    patch1 = patches[cost.index(cost_sorted[0])]
+    patch2 = patches[cost.index(cost_sorted[1])]
+    patch3 = patches[cost.index(cost_sorted[2])]
+    patch4 = patches[cost.index(cost_sorted[3])]
+    patch5 = patches[cost.index(cost_sorted[4])]
+    """
 
-    colormap = np.random.rand(10, 3)
+    # plotting the patch giving minimum cost
+    """
+    mlab.points3d(patch1[:, 0],patch1[:, 1], patch1[:, 2])
+    mlab.points3d(patch2[:, 0],patch2[:, 1], patch2[:, 2])
+    mlab.points3d(patch3[:, 0],patch3[:, 1], patch3[:, 2])
+    mlab.points3d(patch4[:, 0],patch4[:, 1], patch4[:, 2])
+    mlab.points3d(patch5[:, 0],patch5[:, 1], patch5[:, 2])
+    """
+    colormap = np.random.rand(10,3)
+    mlab.points3d(vFiducial[:,0],vFiducial[:,1],vFiducial[:,2])
     for i in range(10):
         patch = patches[cost.index(cost_sorted[i])]
-        mlab.points3d(patch[:, 0], patch[:, 1], patch[:, 2], color=colormap[i])
+        mlab.points3d(patch[:,0],patch[:,1],patch[:,2],color=tuple(colormap[i]))
 
-    mlab.points3d(pointCloud[::10, 0], pointCloud[::10, 1],
-                  pointCloud[::10, 2], color=(1, 0, 0))
+
+    mlab.points3d(pointCloud[::40,0],pointCloud[::40,1],pointCloud[::40,2], color=(1,0,0))
     # mlab.quiver3d(0, 0, 0, 0, 0, 1)
     # mlab.quiver3d(0, 0, 0, norm[0], norm[1], norm[2], color=(0, 1, 0))
     mlab.show()
-
-
-# def checkFiducial(pointCloud, poi, normals, neighbor):
-#     global vFiducial, fFiducial
-
-#     patches = np.array([pointCloud[lst] for lst in neighbor])
-#     # all patches are translated to origin(or normalised) by subtracting
-#     # the coordinate of point around which the patch is taken
-#     normPatches = np.array([patches[i] - poi[i] for i in range(len(poi))])
-
-#     if vFiducial.size == 0:
-#         vFiducial, fFiducial, _ = genFiducialModel()
-
-#     phi = np.arctan(normals[:, 1] / normals[:, 0])
-#     theta = np.arctan(
-#         np.sqrt(normals[:, 0]**2 + normals[:, 1]**2) / normals[:, 2])
-#     theta[theta < 0] += np.pi
-
-#     alignedPatches = rotatePC(normPatches.copy(), normals.copy(), theta, phi)
-
-#     # cost = np.array([comparePC(vFiducial, alignedPatches[i])
-#     #                  for i in range(len(poi))])
-
-#     # i = np.argmin(cost)
-#     i=0
-
-#     # print cost[i]
-
-#     patch = alignedPatches[i]
-#     print patch.shape
-
-#     # plotting the patch giving minimum cost
-#     # mlab.triangular_mesh(
-#     #     vFiducial[:, 0], vFiducial[:, 1], vFiducial[:, 2], fFiducial)
-#     # mlab.points3d(patch[:, 0],
-#     #               patch[:, 1], patch[:, 2])
-#     # # mlab.quiver3d(0, 0, 0, 0, 0, 1)
-#     # # mlab.quiver3d(0, 0, 0, norm[0], norm[1], norm[2], color=(0, 1, 0))
-#     # mlab.show()

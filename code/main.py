@@ -9,8 +9,8 @@ import time
 from skimage import filters
 from mayavi import mlab
 import copy
-# from mpl_toolkits.mplot3d import Axes3D
-# import matplotlib.pyplot as plt
+
+import matplotlib.pyplot as plt
 
 ConstPixelSpacing = (1, 1, 1)
 
@@ -43,12 +43,9 @@ def main():
 
     surfaceVoxels = surfaceVoxelCoord / ConstPixelSpacing
 
-    # print normals.shape
 
     print("---- %s seconds -----" % (time.time() - start_time))
 
-    # normals = np.squeeze(normals)
-    # visualiseNormals(verts, normals, ConstPixelSpacing, res=100)
     # ------ uncomment this to view surface mesh ----------
     # vert, normals, faces = getSurfaceMesh(voxelData, ConstPixelSpacing)
     # mlab.triangular_mesh(vert[:, 0], vert[:, 1], vert[:, 2], faces)
@@ -56,31 +53,57 @@ def main():
 
     # i = 100  # decrease this to sample more points
     # point = np.array([104,337,127])
-    # neighbor = getNeighborVoxel(surfaceVoxelCoord, point*ConstPixelSpacing, r=5.5)
+    neighbor = getNeighborVoxel(surfaceVoxelCoord, surfaceVoxelCoord[0], r=9)
+
     # neighbor = np.array(neighbor)
     # # print neighbor.shape
     # # print neighbor
-    # patch = surfaceVoxelCoord[neighbor]
-    point1 = np.array([104, 337, 127])
-    point2 = np.array([150, 430, 91])
-    patch, norm = extractFiducialModel(surfaceVoxelCoord, normals, point1)
-    patch2,_,_ = genFiducialModel()
-    # patch2, _ = extractFiducialModel(surfaceVoxelCoord, normals, point2)
-    depthMap1 = genPHI(patch.copy())
-    depthMap2 = genPHI(patch2.copy())
-    filtered1 = filters.sobel(depthMap1)
-    filtered2 = filters.sobel(depthMap2)
+    patch_test = surfaceVoxelCoord[neighbor]
+    patch_test -= surfaceVoxelCoord[0]
+    T = find_init_transfo(np.array([0,0,1]),normals[0])
+    patch_test = apply_affine(patch_test, T)
 
-    plt.imshow(filtered1)
+
+    fid_points = np.array([[104, 337, 127], [153, 430, 91],
+                           [385, 201, 97], [310, 92, 99],
+                           [106, 354, 102], [224, 87, 122],
+                           [358, 399, 122], [142, 141, 124],
+                           [370, 169, 123], [241, 419, 139],
+                           [347, 358, 144]])
+
+    # point1 = np.array([104, 337, 127])
+    # point2 = np.array([150, 430, 91])
+    patch, norm, orig = extractFiducialModel(surfaceVoxelCoord, normals, fid_points[2])
+    patch2, _, _ = genFiducialModel()
+    # patch2, _ = extractFiducialModel(surfaceVoxelCoord, normals, point2)
+    # depthMap1 = genPHI(patch.copy())
+    dm_test = genPHI(patch_test.copy())
+    depthMap2 = genPHI(patch2.copy())
+    # depthMap2 = genFiducialPHI()
+    # filtered1 = filters.scharr(depthMap1)
+    # filtered1[filtered1>=0.9] = 1
+    # filtered1[filtered1<0.9] = 0
+    # filtered2 = filters.scharr(depthMap2)
+    # filt_test = filters.scharr(dm_test)
+
+    # print np.correlate(filtered1.flatten(), filtered2.flatten())
+    # print ssim(filtered1,filtered2)
+    # print np.correlate(filt_test.flatten(), filtered2.flatten())
+    # print ssim(filt_test, filtered2)
+
+    plt.imshow(dm_test)
     plt.show()
-    plt.imshow(filtered2)
+    # plt.imshow(filtered2)
+    plt.imshow(depthMap2)
     plt.show()
     # print ssim(filtered1, filtered2)
     # print norms
-
-    mlab.points3d(patch2[:, 0], patch2[:, 1], patch2[:, 2])
-    mlab.points3d(patch[:, 0], patch[:, 1], patch[:, 2], color=(1,0,0))
-    mlab.quiver3d(0,0,0,0,0,1)
+    mlab.points3d(patch2[:, 0], patch2[:, 1], patch2[:, 2], color=(1, 0, 0))
+    mlab.points3d(patch[:, 0], patch[:, 1], patch[:, 2])
+    # mlab.points3d(patch_test[:, 0], patch_test[:, 1], patch_test[:, 2])
+    
+    # mlab.quiver3d(0, 0, 0, 0, 0, 1, color=(0,1,0))
+    mlab.show()
     # mlab.quiver3d(0,0,0,norm[0],norm[1],norm[2])
     # mlab.points3d(point[0]*ConstPixelSpacing[0],point[1]*ConstPixelSpacing[1],point[2]*ConstPixelSpacing[2], color=(1,0,0))
 
@@ -103,7 +126,7 @@ def main():
     # ax.scatter(surfaceVoxels[:, 0], surfaceVoxels[:, 1], surfaceVoxels[:, 2])
     # print(time.asctime(time.localtime(time.time())))
     # plt.show()
-    mlab.show()
+    # mlab.show()
 
 
 if __name__ == '__main__':

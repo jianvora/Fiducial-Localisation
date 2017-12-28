@@ -191,16 +191,28 @@ def genPHI(patch, size=15):
     if size % 2 == 0:
         size += 1
 
-    center = np.uint8(size / 2)
+    center = np.uint16(size / 2)
 
-    patch += (center, center, 0)
+    patch += (center, center, 0) 
 
-    depthMap = np.ones((size, size)) * (-100)
+    depthMap = np.ones((size, size)) * (-1000)
 
+    x = np.int16(patch[:, 0])
+    y = np.int16(patch[:, 1])
+    del_points = np.array([])
+    del_points = np.append(del_points,np.where(x<0))
+    del_points = np.append(del_points,np.where(x>=15))
+    del_points = np.append(del_points,np.where(y<0))
+    del_points = np.append(del_points,np.where(y>=15))
+    # patch = np.delete(patch, np.where(y<0), axis=0)
+    patch = np.delete(patch, del_points, axis=0)
+    # print patch
+    # print x[np.where(x==15)]
+    # print np.where(y==15)
     for i in range(patch.shape[0]):
-        depthMap[np.uint8(patch[i, 0] * res), np.uint8(patch[i, 1] * res)] = max(
-            (depthMap[np.uint8(patch[i, 0] * res), np.uint8(patch[i, 1] * res)]), (patch[i, 2]))
-    depthMap[depthMap == (-100)] = 0
+        depthMap[np.uint16(patch[i, 0] * res), np.uint16(patch[i, 1] * res)] = max(
+            depthMap[np.uint16(patch[i, 0] * res), np.uint16(patch[i, 1] * res)], patch[i, 2])
+    depthMap[depthMap == (-1000)] = 0
 
     return depthMap
 
