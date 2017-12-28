@@ -3,7 +3,9 @@ import dicom
 import os
 from natsort import natsorted
 import numpy as np
+import copy
 from skimage import measure
+from skullFindFIducialLoya import *
 
 ConstPixelSpacing = (1, 1, 1)
 
@@ -67,6 +69,30 @@ def applyThreshold(voxelData):
     voxel[voxel <= lower_thresh] = 0
 
     return voxel
+
+
+def extractFiducialModel(surfaceVoxelCoord, normals, point):
+
+    neighbor = getNeighborVoxel(
+        surfaceVoxelCoord, point * ConstPixelSpacing, r=7)
+    neighbor = np.array(neighbor)
+    patch = surfaceVoxelCoord[neighbor]
+    neigh = NearestNeighbors(n_neighbors=1)
+    neigh.fit(patch)
+    distances, indices = neigh.kneighbors(
+        point * ConstPixelSpacing, return_distance=True)
+    center = patch[indices][0, 0]
+    # print center
+    patch -= center
+    point = (point*ConstPixelSpacing)-center
+    print point
+    norm = normals[neighbor[indices]]
+    # norm = norm.reshape(1,-1)
+    # print norm
+    T = find_init_transfo(np.array([0, 0, 1]), copy.deepcopy(norm[0,0]))
+    patch = apply_affine(patch, T)
+    alignedNorm = apply_affine(copy.deepcopy(norm[0]), T)
+    return patch, alignedNorm[0]
 
 
 def genFiducialModel():
