@@ -315,27 +315,24 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     print(str(count)+ " of small point clouds detected")
     #cost = np.array([nearest_neighbor(vFiducial, alignedPatches[i])
                      #for i in range(len(poi))])
-    
+     
+    return cost, patches
 
+def visualiseFiducials(cost, patches, pointCloud, verts, faces):
     cost_sorted = np.sort(cost)
-    print("")
-    print("")
-    for i in range(40):
-        print(cost_sorted[i]),
-        print(" "),
-        print(cost.index(cost_sorted[i])),
-        print(" "),
-        print(alignedPatches[i].size)
+    colormap = np.random.rand(100,3)
 
-    
-    colormap = np.random.rand(30,3)
-    mlab.points3d(vFiducial[:,0],vFiducial[:,1],vFiducial[:,2])
-    for i in range(30):
-        patch = patches[cost.index(cost_sorted[i])]
-        mlab.points3d(patch[:,0],patch[:,1],patch[:,2],color=tuple(colormap[i]))
+    # PLOT THE FIDUCIAL VOXELS
+    # for i in range(100):
+    #     patch = patches[cost.index(cost_sorted[i])]
+    #     mlab.points3d(patch[:,0],patch[:,1],patch[:,2],color=tuple(colormap[i]))
 
+    mlab.triangular_mesh([vert[0] for vert in verts],
+                          [vert[1] for vert in verts],
+                          [vert[2] for vert in verts], faces)
 
-    mlab.points3d(pointCloud[::80,0],pointCloud[::80,1],pointCloud[::80,2], color=(1,0,0))
+    # mlab.points3d(pointCloud[::80,0],pointCloud[::80,1],pointCloud[::80,2], color=(1,0,0))
+
     # mlab.quiver3d(0, 0, 0, 0, 0, 1)
     # mlab.quiver3d(0, 0, 0, norm[0], norm[1], norm[2], color=(0, 1, 0))
     mlab.show()

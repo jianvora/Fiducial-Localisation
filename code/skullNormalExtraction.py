@@ -6,7 +6,7 @@ from skullFindSurface import getSurfaceVoxels
 
 def findSurfaceNormals(surfaceVoxels, voxelData, ConstPixelSpacing):
     # Takes in verts, normals from the Marching Cubes Algorithm
-    verts, normals, _ = getSurfaceMesh(voxelData, ConstPixelSpacing)
+    verts, normals, faces = getSurfaceMesh(voxelData, ConstPixelSpacing)
 
     surfaceVoxels = np.float64(surfaceVoxels) * ConstPixelSpacing
 
@@ -18,7 +18,7 @@ def findSurfaceNormals(surfaceVoxels, voxelData, ConstPixelSpacing):
 
     surfaceNormals_out,surfaceVoxels_out = getOutwardNormals(surfaceNormals,surfaceVoxels)
 
-    return surfaceNormals_out,surfaceVoxels_out
+    return surfaceNormals_out,surfaceVoxels_out, verts, faces
 
 
 def getSurfaceMesh(voxelData, ConstPixelSpacing):
