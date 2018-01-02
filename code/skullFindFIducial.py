@@ -179,11 +179,12 @@ def find_init_transfo(evec1,evec2):
     T[2,3] = tz
     return T
 
-def genFiducialModel(surfaceVoxelCoord, normals, point, PixelSpacing):
-    point = np.float64(point)*PixelSpacing
-    neighbor = getNeighborVoxel(
-        surfaceVoxelCoord, point, r=4.8)
-    neighbor = np.array(neighbor)
+def genFiducialModel(surfaceVoxelCoord, normals, point,neighbor, PixelSpacing):
+    # point = np.float64(point)*PixelSpacing
+    # neighbor = getNeighborVoxel(
+    #      surfaceVoxelCoord, point, r=4.8)
+    # neighbor = np.array(neighbor)
+    # print(neighbor-neighbor1)
     patch = surfaceVoxelCoord[neighbor]
     neigh = NearestNeighbors(n_neighbors=4)
     neigh.fit(patch)
@@ -193,93 +194,19 @@ def genFiducialModel(surfaceVoxelCoord, normals, point, PixelSpacing):
     orignal_patch = copy.deepcopy(patch)
     patch -= center
     point -= center
-
+    # print(neighbor)
+    # norm = np.zeros((1,3),dtype='float')
+    # for i in range(len(indices[0])):
+    #     norm += normals[neighbor[indices[0][i]]].reshape(-1,3)
     norm = normals[neighbor[indices]].reshape(-1,3)
     norm = np.sum(norm,axis=0)/4
+    #norm  = norm/4
     norm = norm.reshape(1,-1)
 
-    T = find_init_transfo(np.array([0, 0, 1]), copy.deepcopy(norm[0]))
-    patch = apply_affine(patch, T)
+    T = find_init_transfo(np.array([0.0, 0.0, 1.0]), copy.deepcopy(norm[0]))
+    patchch = apply_affine(copy.deepcopy(patch), T)
     alignedNorm = apply_affine(copy.deepcopy(norm), T)
-    return patch,alignedNorm[0],orignal_patch
-"""
-def genFiducialModel_old(PixelSpacing):
-    innerD = 4  # mm
-    outerD = 11  # mm
-    height = 2  # mm
-
-    mPixel = np.uint8(np.round(outerD / PixelSpacing[0]))
-    if mPixel % 2 != 0:
-        mPixel += 2
-    else:
-        mPixel += 1
-    mLayer = np.uint8(np.round(height / PixelSpacing[2]) + 1)
-
-    fiducial = np.zeros((mPixel, mPixel, mLayer))
-    for l in range(mLayer):
-        for i in range(mPixel):
-            for j in range(mPixel):
-                d = np.sqrt(((i - (mPixel - 1) * 0.5)*PixelSpacing[0])**2 +
-                            ((j - (mPixel - 1) * 0.5)*PixelSpacing[1])**2)
-                if d <= outerD * 0.5 and d >= innerD * 0.5 and l < mLayer - 1:
-                    fiducial[i, j, l] = 1
-
-    vertFiducial, fFiducial, nFiducial, valFiducial = measure.marching_cubes_lewiner(
-        fiducial, 0, PixelSpacing)
-
-    vertFiducial = vertFiducial - np.sum(
-        vertFiducial[vertFiducial[:, 2] <= 0],
-        axis=0) / vertFiducial[vertFiducial[:, 2] <= 0].shape[0]
-
-    # vertFiducial = np.append(vertFiducial, np.array([[0, 0, 0]]), axis=0)
-    # nFiducial = np.append(nFiducial, np.array([[0, 0, 1]]), axis=0)
-    return vertFiducial, fFiducial, nFiducial
-"""
-"""
-def genFiducialModel_old(PixelSpacing):
-    innerD = 4  # mm
-    outerD = 14 * PixelSpacing[0]  # mm
-    height = 2  # mm
-    print outerD
-    mPixel = np.uint8(np.round(outerD / PixelSpacing[0]))
-    if mPixel % 2 != 0:
-        mPixel += 16
-    else:
-        mPixel += 15
-    # mLayer = np.uint8(np.round(height / PixelSpacing[2]) + 1)
-    mLayer = height / PixelSpacing[2]
-    # print height / PixelSpacing[2]
-
-    fiducial = np.zeros((mPixel, mPixel, int(mLayer) + 2))
-    for l in range(int(mLayer)):
-        for i in range(mPixel):
-            for j in range(mPixel):
-                d = np.sqrt(((i - (mPixel - 1) * 0.5) * PixelSpacing[0])**2 +
-                            ((j - (mPixel - 1) * 0.5) * PixelSpacing[1])**2)
-                if d <= outerD * 0.5 and d >= innerD * 0.5 and l <= mLayer:
-                    fiducial[i, j, l] = 1
-                elif d > (outerD * 0.5) and d < ((outerD * 0.5) + 1) and l <= mLayer:
-                    fiducial[i, j, l] = 1 - (d - (outerD * 0.5))
-                elif d < innerD * 0.5 and d < ((innerD * 0.5) - 1) and l <= mLayer:
-                    fiducial[i, j, l] = 1 + (d - (innerD * 0.5))
-                elif l > mLayer and l < mLayer + 1 and d <= outerD * 0.5 and d >= innerD * 0.5:
-                    fiducial[i, j, l] = 1 - (l - mLayer)
-
-    # fiducial = np.insert(fiducial, 0, np.ones((mPixel, mPixel)), axis=2)
-    vertFiducial, fFiducial, nFiducial, valFiducial = measure.marching_cubes_lewiner(
-        fiducial, 0, ConstPixelSpacing)
-
-    vertFiducial = vertFiducial - np.sum(
-        vertFiducial[vertFiducial[:, 2] <= 0],
-        axis=0) / vertFiducial[vertFiducial[:, 2] <= 0].shape[0]
-
-    # vertFiducial = np.append(vertFiducial, np.array([[0, 0, 0]]), axis=0)
-    # nFiducial = np.append(nFiducial, np.array([[0, 0, 1]]), axis=0)
-    # mlab.triangular_mesh(
-    # vertFiducial[:, 0], vertFiducial[:, 1], vertFiducial[:, 2], fFiducial)
-    # mlab.show()
-    return vertFiducial, fFiducial, nFiducial
-"""
+    return patchch,alignedNorm[0],orignal_patch
 
 def genFiducialModel_old(PixelSpacing):
     global ConstPixelSpacing
@@ -351,19 +278,18 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     global vFiducial, fFiducial,ConstPixelSpacing
     start_time = time.time()
     ConstPixelSpacing = PixelSpacing
-
-    #patches = np.array([pointCloud[lst] for lst in neighbor])
-    # all patches are translated to origin(or normalised) by subtracting
-    # the coordinate of point around which the patch is taken
-    #normPatches = np.array([patches[i] - poi[i] for i in range(len(poi))])
-
+    
     if vFiducial.size == 0:
         #vFiducial,_,_ = genFiducialModel(pointCloud, normalstotal,np.array([385,201,3*97]), ConstPixelSpacing)
         vFiducial,_,_ = genFiducialModel_old(ConstPixelSpacing)
     alignedPatches = []
     patches =  []
-    for i in range(len(poi)):
-        algiP, aligN, P = genFiducialModel(pointCloud, normalstotal, poi[i], ConstPixelSpacing)
+    point = np.float64(copy.deepcopy(poi))*ConstPixelSpacing
+    neighbor1 = getNeighborVoxel(pointCloud, point, r=4.8)
+    neighbor1 = np.array(neighbor1)
+    
+    for i in range(len(point)):
+        algiP, aligN, P = genFiducialModel(pointCloud, normalstotal, point[i],np.array(neighbor1[i]).astype(int), ConstPixelSpacing)
         alignedPatches.append(algiP)
         patches.append(P)
         if(i%20 == 0):
@@ -372,33 +298,15 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     patches = np.array(patches) ## contains the orignal patch
     alignedPatches = np.array(alignedPatches) ## contains the transformed patch
 
-    """
-    phi = np.arctan(normals[:, 1] / normals[:, 0])
-    theta = np.arctan(
-        np.sqrt(normals[:, 0]**2 + normals[:, 1]**2) / normals[:, 2])
-    theta[theta < 0] += np.pi
-
-    alignedPatches = rotatePC(normPatches.copy(), normals.copy(), theta, phi)
-
-    """
-    """
-    alignedPatches = []
-    alignedNormal = []
-    for i in range(len(poi)):
-        affine_T = find_init_transfo(np.array([0,0,1]),normals[i])
-        alignedPatches.append(np.array(apply_affine(normPatches[i],affine_T)))
-        alignedNormal.append(np.array(apply_affine(copy.deepcopy(normals[i]).reshape(1,-1),affine_T)))
-    alignedPatches = np.array(alignedPatches)
-
-    """
+    
     cost = []
 
     count = 0
-    for i in range(len(poi)):
+    for i in range(len(point)):
         if(i%200 == 0):
             print("ICP: "),
             print(i)
-        if(len(alignedPatches[i])>400):
+        if(len(alignedPatches[i])>800):
             cost.append(icp(alignedPatches[i], vFiducial,max_iterations=1)[1])
         else:
             count += 1
@@ -419,30 +327,15 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
         print(" "),
         print(alignedPatches[i].size)
 
-    """
-    patch1 = patches[cost.index(cost_sorted[0])]
-    patch2 = patches[cost.index(cost_sorted[1])]
-    patch3 = patches[cost.index(cost_sorted[2])]
-    patch4 = patches[cost.index(cost_sorted[3])]
-    patch5 = patches[cost.index(cost_sorted[4])]
-    """
-
-    # plotting the patch giving minimum cost
-    """
-    mlab.points3d(patch1[:, 0],patch1[:, 1], patch1[:, 2])
-    mlab.points3d(patch2[:, 0],patch2[:, 1], patch2[:, 2])
-    mlab.points3d(patch3[:, 0],patch3[:, 1], patch3[:, 2])
-    mlab.points3d(patch4[:, 0],patch4[:, 1], patch4[:, 2])
-    mlab.points3d(patch5[:, 0],patch5[:, 1], patch5[:, 2])
-    """
-    colormap = np.random.rand(10,3)
+    
+    colormap = np.random.rand(30,3)
     mlab.points3d(vFiducial[:,0],vFiducial[:,1],vFiducial[:,2])
-    for i in range(10):
+    for i in range(30):
         patch = patches[cost.index(cost_sorted[i])]
         mlab.points3d(patch[:,0],patch[:,1],patch[:,2],color=tuple(colormap[i]))
 
 
-    mlab.points3d(pointCloud[::40,0],pointCloud[::40,1],pointCloud[::40,2], color=(1,0,0))
+    mlab.points3d(pointCloud[::80,0],pointCloud[::80,1],pointCloud[::80,2], color=(1,0,0))
     # mlab.quiver3d(0, 0, 0, 0, 0, 1)
     # mlab.quiver3d(0, 0, 0, norm[0], norm[1], norm[2], color=(0, 1, 0))
     mlab.show()

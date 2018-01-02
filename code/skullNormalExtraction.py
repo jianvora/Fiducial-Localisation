@@ -8,18 +8,17 @@ def findSurfaceNormals(surfaceVoxels, voxelData, ConstPixelSpacing):
     # Takes in verts, normals from the Marching Cubes Algorithm
     verts, normals, _ = getSurfaceMesh(voxelData, ConstPixelSpacing)
 
-    surfelCoord = np.float64(surfaceVoxels) * ConstPixelSpacing
+    surfaceVoxels = np.float64(surfaceVoxels) * ConstPixelSpacing
 
     nbrs = NearestNeighbors(n_neighbors=1, algorithm='kd_tree').fit(verts)
-    distances, indices = nbrs.kneighbors(surfelCoord)
+    distances, indices = nbrs.kneighbors(surfaceVoxels)
     surfaceNormals = normals[indices[:]]
     surfaceNormals = surfaceNormals.reshape(
         surfaceNormals.shape[0], surfaceNormals.shape[2])
 
-    surfaceNormals, surfelCoord = getOutwardNormals(
-        surfaceNormals, surfelCoord)
+    surfaceNormals_out,surfaceVoxels_out = getOutwardNormals(surfaceNormals,surfaceVoxels)
 
-    return surfelCoord, surfaceNormals
+    return surfaceNormals_out,surfaceVoxels_out
 
 
 def getSurfaceMesh(voxelData, ConstPixelSpacing):
@@ -27,14 +26,9 @@ def getSurfaceMesh(voxelData, ConstPixelSpacing):
         voxelData, 0, ConstPixelSpacing)
     return verts, normals, faces
 
-
 def getOutwardNormals(normals, surfels):
-    # Takes in all normals and returns only outward normals for the skull
-    # Returns a point roughly at the center of the skull
     mid = np.average(surfels, 0)
     diff_coord = surfels - mid
-    thresh = -1/np.sqrt(2)
-    outward_normals = normals[np.sum(diff_coord * normals, 1) > thresh]
-    outer_surfels = surfels[np.sum(diff_coord * normals, 1) > thresh]
-
+    outward_normals = normals[np.sum(diff_coord * normals, 1) > 0]
+    outer_surfels = surfels[np.sum(diff_coord * normals, 1) > 0]
     return outward_normals, outer_surfels
