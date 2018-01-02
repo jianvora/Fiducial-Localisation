@@ -10,6 +10,7 @@ from skullFindFIducialLoya import *
 ConstPixelSpacing = (1, 1, 1)
 
 
+
 def readDicomData(path):
     lstFilesDCM = []
     # may want to exclude the first dicom image in some files
@@ -31,13 +32,11 @@ def readDicomData(path):
 def makeCompatible(dicomData, prec=5):
     for i in range(len(dicomData)):
         a = dicomData[i].ImageOrientationPatient
-        print a
         a[0] = round(a[0], prec)
         a[1] = round(a[1], prec)
         a[2] = round(a[2], prec)
         a[3] = round(a[3], prec)
         dicomData[i].ImageOrientationPatient = a
-
 
 def get3DRecon(data):
     global ConstPixelSpacing
