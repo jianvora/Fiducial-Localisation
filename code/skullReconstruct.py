@@ -16,7 +16,7 @@ from natsort import natsorted
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 from skimage import measure
-from skullFindFIducial import *
+from skullFindFiducial import *
 import scipy.ndimage as nd
 ConstPixelSpacing = (1.0, 1.0, 1.0)
 

@@ -11,7 +11,6 @@ Copyright © 2018 Indian Institute of Technology, Bombay
 import numpy as np
 from skimage import measure
 from sklearn.neighbors import NearestNeighbors
-from skullFindSurface import getSurfaceVoxels
 
 
 def getSurfaceVoxels(voxelData):

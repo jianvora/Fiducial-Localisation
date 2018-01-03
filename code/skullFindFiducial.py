@@ -227,7 +227,6 @@ def genFiducialModel(PixelSpacing):
     innerD = 4  # in mm
     outerD = 14 * ConstPixelSpacing[0]  # in mm
     height = 2  # in mm
-    print outerD
     mPixel = np.uint8(np.round(outerD / ConstPixelSpacing[0]))
     if mPixel % 2 != 0:
         mPixel += 16
@@ -308,8 +307,7 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
         else:
             count += 1
             cost.append(sigma)
-    print("ICP Completed!")
-    print(str(count) + " of small point clouds detected!")
+    print("ICP Completed!" + str(count) + " of small point clouds detected!")
 
     return cost, patches
 
