@@ -1,65 +1,66 @@
-# to run this code, install dicom_numpy, pydicom, natsort(on pip),skimage and mayavi
+# -*- coding: utf-8 -*-
+"""
+Autonomous localization of fiducial markers for IGNS.
+This script runs the routine for the autonomous
+detection and localization of fiducial markers affixed
+on the skull, using a DICOM scan as input.
+Package dependencies: dicom_numpy, pydicom, natsort,
+scipy, sklearn, skimage and mayavi.
 
-from skullFindSurface import *
+Authors: P. Khirwadkar, H. Loya, D. Shah, R. Chaudhry,
+A. Ghosh & S. Goel (For Inter IIT Technical Meet 2018)
+Copyright © 2018 Indian Institute of Technology, Bombay
+"""
+
 from skullReconstruct import *
 from skullNormalExtraction import *
-from skullFindFIducial import *
+from skullFindFiducial import *
 import time
 from mayavi import mlab
 import copy
-# from mpl_toolkits.mplot3d import Axes3D
-# import matplotlib.pyplot as plt
 
 ConstPixelSpacing = (1.0, 1.0, 1.0)
 
-# def main():
-global ConstPixelSpacing
 start_time = time.time()
-# change to required path to dicom folder
+
 PathDicom = "../2016.06.27 PVC Skull Model/Sequential Scan/DICOM/PA1/ST1/SE2"
-PathDicom = "../2016.05.26 Glass Scan 1 mm/Glass Scan Axial 1.25 mm/DICOM/PA1/ST1/SE2"
 
 data = readDicomData(PathDicom)
-print("---- %s seconds -----" % (time.time() - start_time))
-
 voxelData, ConstPixelSpacing = get3DRecon(data)
-print(ConstPixelSpacing)
-voxelData,ConstPixelSpacing = image_zoom(voxelData,(1,1,3))  ## zooming the image
+print("Constant Pixel Spacing: " + str(ConstPixelSpacing))
+voxelData, ConstPixelSpacing = interpolate_image(
+    voxelData, (1, 1, 3))  # interpolating the image
 voxelDataThresh = applyThreshold(copy.deepcopy(voxelData))
 print(ConstPixelSpacing)
-print("SLices" + str(voxelData.shape))
-print("---- %s seconds -----" % (time.time() - start_time))
+print("---- %s seconds ----- Extracted %s Slices!" %
+      (time.time() - start_time, str(voxelData.shape)))
 
 surfaceVoxels = getSurfaceVoxels(voxelDataThresh)
 
-print("---- %s seconds -----" % (time.time() - start_time))
+print("---- %s seconds ----- Extracted Surface Voxels!" %
+      (time.time() - start_time))
 
 normals, surfaceVoxelCoord, verts, faces = findSurfaceNormals(copy.deepcopy(
     surfaceVoxels), voxelData, ConstPixelSpacing)
 
 
-print("---- %s seconds -----" % (time.time() - start_time))
+print("---- %s seconds ----- Extracted %s Surface Normals!" %
+      (time.time() - start_time, len(surfaceVoxelCoord)))
 
-print(surfaceVoxelCoord.shape)
-i = 20  # decrease this to sample more points
-# red_set = np.random.choice(surfaceVoxelCoord.shape[0], 10000, replace = False)
-normals_red = normals[::i]
-surfaceVoxelCoord_red = surfaceVoxelCoord[::i]
+sampling_factor = 20
+normals_sample = normals[::sampling_factor]
+surfaceVoxelCoord_sample = surfaceVoxelCoord[::sampling_factor]
 
+surfaceVoxelCoord_sample = np.uint16(np.float64(
+    surfaceVoxelCoord_sample) / ConstPixelSpacing)
 
-print("---- %s seconds -----" % (time.time() - start_time))
-surfaceVoxelCoord_red = np.uint16(np.float64(surfaceVoxelCoord_red)/ConstPixelSpacing)
-
-print(len(surfaceVoxelCoord_red))
-
-print("---- %s seconds -----" % (time.time() - start_time))
+print("---- %s seconds ----- Sampled %s Voxels!" %
+      (time.time() - start_time, len(surfaceVoxelCoord_sample)))
 costs, patches = checkFiducial(surfaceVoxelCoord,
-              surfaceVoxelCoord_red,normals, ConstPixelSpacing)
+                               surfaceVoxelCoord_sample, normals, ConstPixelSpacing)
+
+print("---- %s seconds ----- Finished comparing with Fiducial Model!" %
+      (time.time() - start_time))
 
 # Visualise in Mayavi
 visualiseFiducials(costs, patches, surfaceVoxelCoord, verts, faces)
-
-print("---- %s seconds -----" % (time.time() - start_time))
-    
-# if __name__ == '__main__':
-#     main()
