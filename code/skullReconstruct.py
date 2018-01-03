@@ -41,7 +41,6 @@ def readDicomData(path):
 def makeCompatible(dicomData, prec=5):
     for i in range(len(dicomData)):
         a = dicomData[i].ImageOrientationPatient
-        print a
         a[0] = round(a[0], prec)
         a[1] = round(a[1], prec)
         a[2] = round(a[2], prec)
@@ -71,8 +70,10 @@ def get3DRecon(data):
 
 
 def applyThreshold(voxelData):
-    # arbitrary for now, can be set to different values for CT scan as in Hounsfield unit,
-    # bone is from +700 to +3000
+    """
+    Thresholding for the bone value in a real scan (Hounsfield unit).
+    Bone is from 700 to 3000.
+    """
     upper_thresh = 0
     lower_thresh = 0
     voxel = voxelData
