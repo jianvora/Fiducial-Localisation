@@ -12,6 +12,7 @@ import numpy as np
 from scipy.spatial import cKDTree, distance
 from skimage import measure
 from sklearn.neighbors import NearestNeighbors
+from sklearn.cluster import MeanShift
 from mayavi import mlab
 from skullReconstruct import *
 import matplotlib.pyplot as plt
@@ -271,6 +272,36 @@ def genFiducialModel(PixelSpacing):
     return vertFiducial, fFiducial, nFiducial
 
 
+def filterFiducials(cost, patches, points, numMarkers):
+    points = np.float64(copy.deepcopy(points)) * ConstPixelSpacing
+    
+    bestCosts = np.sort(cost)
+    bestCosts = bestCosts[:numMarkers]
+    bestIndices = np.argsort(cost)
+    bestIndices = bestIndices[:numMarkers]
+    print bestIndices.shape
+    bestPoints = points[bestIndices,:]
+    print bestPoints.shape
+
+    filteredIndices = []
+
+    # Perform Mean Shift Clustering
+    meanShift = MeanShift(bandwidth=10)
+    # params = meanShift.get_params()
+    # bw = params['bandwidth']
+    # meanShift.set_params(bandwidth=bw/10.0)
+    meanShift.fit(bestPoints)
+    labels = meanShift.labels_
+    nClusters = len(np.unique(labels))
+    print nClusters
+    for i in range(nClusters):
+        costsPerFiducial = bestCosts[labels == i]
+        print costsPerFiducial.shape
+        indicesPerFiducial = bestIndices[labels == i]
+        filteredIndices.append(indicesPerFiducial[np.argmin(costsPerFiducial)])
+
+    return filteredIndices
+
 def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     """
     This routine performs template matching between a patch around each
@@ -311,13 +342,14 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
 
     return cost, patches
 
-
-def visualiseFiducials(cost, patches, pointCloud, verts, faces, num_markers=40, show_markers=True):
+def visualiseFiducials(cost, patches, points, pointCloud, verts, faces, num_markers=100, show_markers=True):
     """
     Plot the top __ fiducial markers, with the original 3D scan, on Mayavi for
     visualisation and verification.
     """
-    cost_sorted = np.sort(cost)
+    indices = filterFiducials(cost, patches, points, num_markers)
+    # print len(indices)
+    # cost_sorted = np.sort(cost)
     colormap = np.random.rand(100, 3)
 
     mlab.triangular_mesh([vert[0] for vert in verts],
@@ -325,8 +357,8 @@ def visualiseFiducials(cost, patches, pointCloud, verts, faces, num_markers=40, 
                          [vert[2] for vert in verts], faces)
     if show_markers:
         # Plot the top __ markers!
-        for i in range(num_markers):
-            patch = patches[cost.index(cost_sorted[i])]
+        for i in range(len(indices)):
+            patch = patches[indices[i]]
             mlab.points3d(patch[:, 0], patch[:, 1], patch[
                           :, 2], color=tuple(colormap[i]))
 

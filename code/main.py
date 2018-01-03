@@ -63,4 +63,9 @@ print("---- %s seconds ----- Finished comparing with Fiducial Model!" %
       (time.time() - start_time))
 
 # Visualise in Mayavi
-visualiseFiducials(costs, patches, surfaceVoxelCoord, verts, faces)
+visualiseFiducials(costs, patches, surfaceVoxelCoord_sample, surfaceVoxelCoord, verts, faces)
+
+# for i in range(num_markers):
+# 	patch = patches[indices[i]]
+# 	mlab.points3d(patch[:, 0], patch[:, 1], patch[
+# 	                  :, 2], color=tuple(colormap[labels[i]]))
