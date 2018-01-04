@@ -23,7 +23,6 @@ import time
 vFiducial = np.array([])
 fFiducial = np.array([])
 ConstPixelSpacing = (1.0, 1.0, 1.0)
-c = 0
 
 
 def getNeighborVoxel(pointCloud, points, r):
@@ -200,27 +199,21 @@ def genPatch(surfaceVoxelCoord, normals, point, neighbor, PixelSpacing):
     with its surface normal aligned to the vertical [0 0 1].
     """
     patch = surfaceVoxelCoord[neighbor]
-    try:
-        neigh = NearestNeighbors(n_neighbors=4)
-        neigh.fit(patch)
-        distances, indices = neigh.kneighbors(
-            point.reshape(1, -1), return_distance=True)
-        center = patch[indices][0, 0]
-        orignalPatch = copy.deepcopy(patch)
-        patch -= center
-        point -= center
-        norm = normals[neighbor[indices]].reshape(-1, 3)
-        norm = np.sum(norm, axis=0) / 4
-        norm = norm.reshape(1, -1)
+    neigh = NearestNeighbors(n_neighbors=4)
+    neigh.fit(patch)
+    distances, indices = neigh.kneighbors(
+        point.reshape(1, -1), return_distance=True)
+    center = patch[indices][0, 0]
+    orignalPatch = copy.deepcopy(patch)
+    patch -= center
+    point -= center
+    norm = normals[neighbor[indices]].reshape(-1, 3)
+    norm = np.sum(norm, axis=0) / 4
+    norm = norm.reshape(1, -1)
 
-        T = find_init_transfo(np.array([0.0, 0.0, 1.0]), copy.deepcopy(norm[0]))
-        alignedPatch = apply_affine(copy.deepcopy(patch), T)
-        alignedNorm = apply_affine(copy.deepcopy(norm), T)
-    except:
-        alignedPatch = np.array([1])
-        alignedNorm = np.array([[1.0,0.0,0.0]])
-        orignalPatch = np.array([1])
-        print("exceptions")
+    T = find_init_transfo(np.array([0.0, 0.0, 1.0]), copy.deepcopy(norm[0]))
+    alignedPatch = apply_affine(copy.deepcopy(patch), T)
+    alignedNorm = apply_affine(copy.deepcopy(norm), T)
     return alignedPatch, alignedNorm[0], orignalPatch
 
 
@@ -276,6 +269,8 @@ def genFiducialModel(PixelSpacing):
         vertFiducial[vertFiducial[:, 2] <= 0],
         axis=0) / vertFiducial[vertFiducial[:, 2] <= 0].shape[0]
     vertFiducial = np.append(vertFiducial, vert, axis=0)
+    print vertFiducial.shape
+    print("70 percent of fiducial model = " + str(0.7*vertFiducial.shape[0]))
     return vertFiducial, fFiducial, nFiducial
 
 
@@ -328,8 +323,7 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     neighbor1 = np.array(neighbor1)
 
     for i in range(len(point)):
-        algiP, aligN, P = genPatch(pointCloud, normalstotal, point[
-            i], np.array(neighbor1[i]).astype(int), ConstPixelSpacing)
+        algiP, aligN, P = genPatch(pointCloud, normalstotal, point[i], np.array(neighbor1[i]).astype(int), ConstPixelSpacing)
         alignedPatches.append(algiP)
         patches.append(P)
     patches = np.array(patches)  # Orignal patch
@@ -338,7 +332,8 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     cost = []
     count = 0
     sigma = 100  # A large value
-    points_thresh = 400  # A threshold on number of points in a typical patch
+    # points_thresh = 800  # A threshold on number of points in a typical patch
+    points_thresh = 0.6 * vFiducial.shape[0]
     for i in range(len(point)):
         if(len(alignedPatches[i]) > points_thresh):
             cost.append(icp(alignedPatches[i], vFiducial, max_iterations=1)[1])
@@ -349,26 +344,40 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
 
     return cost, patches
 
-def visualiseFiducials(cost, patches, points, pointCloud, verts, faces, num_markers=100, show_skull=True, show_markers=True):
+def visualiseFiducials(cost, patches, points, pointCloud, verts, faces, ijk_to_xyz, normals, num_markers=100, show_markers=True):
     """
-    Collects the top __ fiducial markers, filters them using the Mean Shift algorithm,
-    and then renders with the original 3D scan, on Mayavi for
+    Plot the top __ fiducial markers, with the original 3D scan, on Mayavi for
     visualisation and verification.
     """
+    threshold = 0.0010
     indices = filterFiducials(cost, patches, points, num_markers)
-    print len(indices)
+    # print len(indices)
     # cost_sorted = np.sort(cost)
     colormap = np.random.rand(100, 3)
-    if show_skull:
-        mlab.triangular_mesh([vert[0] for vert in verts],
-                             [vert[1] for vert in verts],
-                             [vert[2] for vert in verts], faces)
+
+    mlab.triangular_mesh([vert[0] for vert in verts],
+                         [vert[1] for vert in verts],
+                         [vert[2] for vert in verts], faces)
     if show_markers:
         # Plot the top __ markers!
         for i in range(len(indices)):
-            print i
-            patch = patches[indices[i]]
-            mlab.points3d(patch[:, 0], patch[:, 1], patch[
-                          :, 2], color=tuple(colormap[i]))
+            if (cost[indices[i]]<threshold):
+                patch = patches[indices[i]]
+                mlab.points3d(patch[:, 0], patch[:, 1], patch[:, 2], color=tuple(colormap[i]))
+                ijkcoord = pointCloud[indices[i]]/ConstPixelSpacing
+                mlab.quiver3d(pointCloud[indices[i]][0],pointCloud[indices[i]][1],pointCloud[indices[i]][2],
+                    normals[indices[i]][0],normals[indices[i]][1],normals[indices[i]][2])
+                denom = np.sqrt(normals[indices[i]][0]**2 + normals[indices[i]][1]**2 + normals[indices[i]][2]**2)
+                normals_norm = np.array([normals[indices[i]][0],normals[indices[i]][1],normals[indices[i]][2]],dtype='float')/denom
+                print(normals_norm)
+                # mlab.points3d(pointCloud[indices[i]][0]+2*normals_norm[indices[i]][0],
+                #     pointCloud[indices[i]][1]+2*normals_norm[indices[i]][1],
+                #     pointCloud[indices[i]][2]+2*normals_norm[indices[i]][2])
+                ijkcoord = np.append(ijkcoord,1)
+                xyzcoord = np.matmul(ijk_to_xyz,ijkcoord)
+                print(xyzcoord)
+
+            else:
+                print("skipped!")
 
     mlab.show()

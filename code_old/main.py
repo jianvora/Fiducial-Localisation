@@ -23,33 +23,34 @@ ConstPixelSpacing = (1.0, 1.0, 1.0)
 
 start_time = time.time()
 
-PathDicom = "../2016.06.27 PVC Skull Model/Sequential Scan/DICOM/PA1/ST1/SE3"
+PathDicom = "/home/j_69/Fiducial Localization - MRI Scans/pvc/Sequential Scan/DICOM/PA1/ST1/SE4"
 
 data = readDicomData(PathDicom)
-voxelData, ConstPixelSpacing = get3DRecon(data)
+voxelData, ConstPixelSpacing, ijk_to_xyz = get3DRecon(data)
 print("Constant Pixel Spacing: " + str(ConstPixelSpacing))
 voxelData, ConstPixelSpacing = interpolate_image(
-    voxelData, (1, 1, 6))  # interpolating the image
+    voxelData, (1, 1, 3))  # interpolating the image
 voxelDataThresh = applyThreshold(copy.deepcopy(voxelData))
 print(ConstPixelSpacing)
 print("---- %s seconds ----- Extracted %s Slices!" %
       (time.time() - start_time, str(voxelData.shape)))
 
 surfaceVoxels = getSurfaceVoxels(voxelDataThresh)
-
+# surfaceVoxels has i,j,k indices
 print("---- %s seconds ----- Extracted Surface Voxels!" %
       (time.time() - start_time))
 
 normals, surfaceVoxelCoord, verts, faces = findSurfaceNormals(copy.deepcopy(
     surfaceVoxels), voxelData, ConstPixelSpacing)
-
+# surfaceVoxelCoord = surfaceVoxel*ConstPixelSpacing
 
 print("---- %s seconds ----- Extracted %s Surface Normals!" %
       (time.time() - start_time, len(surfaceVoxelCoord)))
 
-sampling_factor = 10
+sampling_factor = 20
 normals_sample = normals[::sampling_factor]
 surfaceVoxelCoord_sample = surfaceVoxelCoord[::sampling_factor]
+# surfaceVoxelCoord_sample = sub-sampled version of surfaceVoxelCoord
 
 surfaceVoxelCoord_sample = np.uint16(np.float64(
     surfaceVoxelCoord_sample) / ConstPixelSpacing)
@@ -63,7 +64,7 @@ print("---- %s seconds ----- Finished comparing with Fiducial Model!" %
       (time.time() - start_time))
 
 # Visualise in Mayavi
-# visualiseFiducials(costs, patches, surfaceVoxelCoord_sample, surfaceVoxelCoord, verts, faces, num_markers=25)
+visualiseFiducials(costs, patches, surfaceVoxelCoord_sample, surfaceVoxelCoord, verts, faces, ijk_to_xyz, normals)
 
 # for i in range(num_markers):
 # 	patch = patches[indices[i]]

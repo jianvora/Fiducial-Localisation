@@ -56,7 +56,6 @@ def get3DRecon(data):
     global ConstPixelSpacing
     del(data[0])
     RefDs = data[0]
-
     ConstPixelSpacing = (float(RefDs.PixelSpacing[0]), float(
         RefDs.PixelSpacing[1]), float(RefDs.SliceThickness))
 
@@ -67,7 +66,7 @@ def get3DRecon(data):
         print("Handling incompatible dicom slices")
         makeCompatible(data, prec=5)
         voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(data)
-    return voxel_ndarray, ConstPixelSpacing
+    return voxel_ndarray, ConstPixelSpacing, ijk_to_xyz
 
 
 def applyThreshold(voxelData):
@@ -97,5 +96,5 @@ def interpolate_image(A, factor):
     print("Interpolating image by " + str(factor))
     Atrans = nd.interpolation.zoom(A, zoom=factor)
     Atrans = np.array(Atrans, dtype='float32')
-
+    Atrans = nd.filters.median_filter(Atrans,size=3)
     return Atrans, ConstPixelSpacing
