@@ -24,7 +24,9 @@ ConstPixelSpacing = (1.0, 1.0, 1.0)
 start_time = time.time()
 
 # PathDicom = "../2016.06.27 PVC Skull Model/Sequential Scan/DICOM/PA1/ST1/SE3"
-PathDicom = "/Users/Parth/Downloads/09171700"
+# PathDicom = "/Users/Parth/Downloads/09171700"
+PathDicom = "/Users/ritwickchaudhry/Downloads/2012.09.15 ACRELIC2 CT Scan Data from ACTREC/09171420"
+
 data = readDicomData(PathDicom)
 voxelData, ConstPixelSpacing = get3DRecon(data)
 print("Constant Pixel Spacing: " + str(ConstPixelSpacing))

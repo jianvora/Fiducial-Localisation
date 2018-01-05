@@ -15,7 +15,9 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import MeanShift
 from mayavi import mlab
 from skullReconstruct import *
-import matplotlib.pyplot as plt
+# import matplotlib
+# import matplotlib.pyplot as plt
+# matplotlib.use('TkAgg')
 import copy
 import time
 

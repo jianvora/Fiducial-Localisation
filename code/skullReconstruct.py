@@ -18,43 +18,44 @@ from sklearn.neighbors import NearestNeighbors
 from skimage import measure
 from skullFindFiducial import *
 import scipy.ndimage as nd
+
 ConstPixelSpacing = (1.0, 1.0, 1.0)
 
-def remove_keymap_conflicts(new_keys_set):
-    for prop in plt.rcParams:
-        if prop.startswith('keymap.'):
-            keys = plt.rcParams[prop]
-            remove_list = set(keys) & new_keys_set
-            for key in remove_list:
-                keys.remove(key)
+# def remove_keymap_conflicts(new_keys_set):
+#     for prop in plt.rcParams:
+#         if prop.startswith('keymap.'):
+#             keys = plt.rcParams[prop]
+#             remove_list = set(keys) & new_keys_set
+#             for key in remove_list:
+#                 keys.remove(key)
                 
-def multi_slice_viewer(volume):
-    remove_keymap_conflicts({'j', 'k'})
-    fig, ax = plt.subplots()
-    ax.volume = volume
-    ax.index = volume.shape[0] // 2
-    print(volume.shape)
-    ax.imshow(volume[ax.index],cmap = plt.get_cmap('gray'))
-    fig.canvas.mpl_connect('key_press_event', process_key)
+# def multi_slice_viewer(volume):
+#     remove_keymap_conflicts({'j', 'k'})
+#     fig, ax = plt.subplots()
+#     ax.volume = volume
+#     ax.index = volume.shape[0] // 2
+#     print(volume.shape)
+#     ax.imshow(volume[ax.index],cmap = plt.get_cmap('gray'))
+#     fig.canvas.mpl_connect('key_press_event', process_key)
 
-def process_key(event):
-    fig = event.canvas.figure
-    ax = fig.axes[0]
-    if event.key == 'j':
-        previous_slice(ax)
-    elif event.key == 'k':
-        next_slice(ax)
-    fig.canvas.draw()
+# def process_key(event):
+#     fig = event.canvas.figure
+#     ax = fig.axes[0]
+#     if event.key == 'j':
+#         previous_slice(ax)
+#     elif event.key == 'k':
+#         next_slice(ax)
+#     fig.canvas.draw()
 
-def previous_slice(ax):
-    volume = ax.volume
-    ax.index = (ax.index - 1) % volume.shape[0]  # wrap around using %
-    ax.images[0].set_array(volume[ax.index])
+# def previous_slice(ax):
+#     volume = ax.volume
+#     ax.index = (ax.index - 1) % volume.shape[0]  # wrap around using %
+#     ax.images[0].set_array(volume[ax.index])
 
-def next_slice(ax):
-    volume = ax.volume
-    ax.index = (ax.index + 1) % volume.shape[0]
-    ax.images[0].set_array(volume[ax.index])
+# def next_slice(ax):
+#     volume = ax.volume
+#     ax.index = (ax.index + 1) % volume.shape[0]
+#     ax.images[0].set_array(volume[ax.index])
 
 
 def makeCompatible(dicomData, prec=5):
@@ -113,7 +114,7 @@ def get3DRecon(data):
     except dicom_numpy.DicomImportException as e:
         # Invalid DICOM data
         print("Handling incompatible dicom slices")
-        makeCompatible(data, prec=5)
+        # makeCompatible(data, prec=5)
         # voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(data)
         
         try:
@@ -123,8 +124,8 @@ def get3DRecon(data):
             for i in range(len(data)):
                 voxel_ndarray.append(data[i].pixel_array)
             voxel_ndarray = np.array(voxel_ndarray)
-            multi_slice_viewer(voxel_ndarray)
-            plt.show()
+            # multi_slice_viewer(voxel_ndarray)
+            # plt.show()
 
             ijk_to_xyz = np.eye(4)
     return voxel_ndarray, ConstPixelSpacing
