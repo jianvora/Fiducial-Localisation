@@ -25,7 +25,7 @@ start_time = time.time()
 
 # PathDicom = "../2016.06.27 PVC Skull Model/Sequential Scan/DICOM/PA1/ST1/SE3"
 # PathDicom = "/Users/Parth/Downloads/09171700"
-PathDicom = "/Users/ritwickchaudhry/Downloads/2012.09.15 ACRELIC2 CT Scan Data from ACTREC/09171420"
+PathDicom = "/home/j_69/2012.09.15 ACRELIC2 CT Scan Data from ACTREC/09171420"
 
 data = readDicomData(PathDicom)
 voxelData, ConstPixelSpacing = get3DRecon(data, PathDicom)
@@ -54,7 +54,7 @@ normals, surfaceVoxelCoord, verts, faces = findSurfaceNormals(copy.deepcopy(
 print("---- %s seconds ----- Extracted %s Surface Normals!" %
       (time.time() - start_time, len(surfaceVoxelCoord)))
 
-sampling_factor = 10
+sampling_factor = 5
 normals_sample = normals[::sampling_factor]
 surfaceVoxelCoord_sample = surfaceVoxelCoord[::sampling_factor]
 
@@ -70,7 +70,7 @@ print("---- %s seconds ----- Finished comparing with Fiducial Model!" %
       (time.time() - start_time))
 
 # Visualise in Mayavi
-visualiseFiducials(costs, neighbourIndices, surfaceVoxelCoord_sample, surfaceVoxelCoord, verts, faces, num_markers=25)
+visualiseFiducials(costs, neighbourIndices, surfaceVoxelCoord_sample, surfaceVoxelCoord, verts, faces, num_markers=100)
 
 # for i in range(num_markers):
 # 	patch = patches[indices[i]]

@@ -15,6 +15,7 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import MeanShift
 from mayavi import mlab
 from skullReconstruct import *
+from genFiducialPC import *
 # import matplotlib:
 # import matplotlib.pyplot as plt
 # matplotlib.use('TkAgg')
@@ -342,11 +343,11 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     ConstPixelSpacing = PixelSpacing
 
     if vFiducial.size == 0:
-        vFiducial, _, _ = genFiducialModel(ConstPixelSpacing)
+        vFiducial = genFiducialPC()
     alignedPatches = []
     patches = []
     point = np.float64(copy.deepcopy(poi)) * ConstPixelSpacing
-    neighbor1 = getNeighborVoxel(pointCloud, point, r=4.8)
+    neighbor1 = getNeighborVoxel(pointCloud, point, r=7.75)
     neighbor1 = np.array(neighbor1)
     cost = np.array([], dtype=np.float64)
     count = 0

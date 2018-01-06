@@ -1,5 +1,6 @@
 from math import *
 import numpy as np
+from mayavi import mlab
 
 def genFiducialPC(dist = 0.3):
 	# Dimensions in mm
@@ -24,8 +25,9 @@ def genFiducialPC(dist = 0.3):
 			allPoints.extend([[r*cos(theta), r*sin(theta), 0] for theta in np.arange(0,2*pi,dTheta)])
 		if r > R1:
 			allPoints.extend([[r*cos(theta), r*sin(theta), H] for theta in np.arange(0,2*pi,dTheta)])
-
-	return np.asarray(allPoints)
+	allPoints = np.asarray(allPoints)
+	mlab.points3d(allPoints[:,0],allPoints[:,1],allPoints[:,2])
+	return allPoints
 
 if __name__ == '__main__' :
 	allPoints = genFiducialPC()
