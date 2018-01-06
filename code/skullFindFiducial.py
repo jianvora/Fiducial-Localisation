@@ -293,7 +293,7 @@ def genFiducialModel(PixelSpacing):
     return vertFiducial, fFiducial, nFiducial
 
 
-def filterFiducials(cost, patches, points, numMarkers):
+def filterFiducials(cost, points, numMarkers):
     points = np.float64(copy.deepcopy(points)) * ConstPixelSpacing
     cost = np.array(cost)
     bestIndices = np.argsort(cost)
@@ -348,19 +348,19 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     point = np.float64(copy.deepcopy(poi)) * ConstPixelSpacing
     neighbor1 = getNeighborVoxel(pointCloud, point, r=4.8)
     neighbor1 = np.array(neighbor1)
-    cost = np.array([])
+    cost = np.array([], dtype=np.float64)
     count = 0
-    sigma = 100  # A large value
+    sigma = 100.0  # A large value
     points_thresh = 400  # A threshold on number of points in a typical patch
     for i in range(len(point)):
         alignedPatch, _, _ = genPatch(pointCloud, normalstotal, point[
             i], np.array(neighbor1[i]).astype(int), ConstPixelSpacing)
         if(len(alignedPatch) > points_thresh):
-            cost = np.array(
+            cost = np.append(
                 cost, icp(alignedPatch, vFiducial, max_iterations=1)[1])
         else:
             count += 1
-            cost = np.array(cost, sigma)
+            cost = np.append(cost, sigma)
         # alignedPatches.append(aligP)
         # patches.append(P)
     # patches = np.array(patches)  # Orignal patch
@@ -378,16 +378,22 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     #         cost.append(sigma)
     print("ICP Completed!" + str(count) + " of small point clouds detected!")
 
-    return cost  # , patches
+    return cost, neighbor1  # , patches
 
 
-def visualiseFiducials(cost, patches, points, pointCloud, verts, faces, num_markers=100, show_skull=True, show_markers=True):
+def visualiseFiducials(cost, neighbourIndices, points, pointCloud, verts, faces, num_markers=100, show_skull=True, show_markers=True):
     """
     Collects the top __ fiducial markers, filters them using the Mean Shift algorithm,
     and then renders with the original 3D scan, on Mayavi for
     visualisation and verification.
     """
-    indices = filterFiducials(cost, patches, points, num_markers)
+    indices = np.array(filterFiducials(cost, points, num_markers))
+    # print neighbourIndices.shape
+    # print indices.shape
+    # fiducialNeighbourIndices = neighbourIndices[indices,:]
+    # print fiducialNeighbourIndices.shape
+    # fiducialNeighbours = pointCloud[fiducialNeighbourIndices,:]
+    # print fiducialNeighbours.shape
     print len(indices)
     # cost_sorted = np.sort(cost)
     colormap = np.random.rand(100, 3)
@@ -396,10 +402,13 @@ def visualiseFiducials(cost, patches, points, pointCloud, verts, faces, num_mark
                              [vert[1] for vert in verts],
                              [vert[2] for vert in verts], faces)
     if show_markers:
+
         # Plot the top __ markers!
         for i in range(len(indices)):
-            print i
-            patch = patches[indices[i]]
+            # print i
+            # TODO - Find Patch now
+            fiducialNeighbourIndices = neighbourIndices[indices[i]]
+            patch = pointCloud[fiducialNeighbourIndices]
             mlab.points3d(patch[:, 0], patch[:, 1], patch[
                 :, 2], color=tuple(colormap[i]))
 
