@@ -232,143 +232,154 @@ def genPatch(surfaceVoxelCoord, normals, point, neighbor, PixelSpacing):
 
 
 def genFiducialModel(PixelSpacing):
-	"""
-	Generates a model of the Fiducial marker, based on known geometry.
-	This routine returns vertices, faces and normals of the model,
-	as returned by the Marching Cubes algorithm.
-	"""
-	global ConstPixelSpacing
-	ConstPixelSpacing = PixelSpacing
-	innerD = 4  # in mm
-	outerD = 14 * ConstPixelSpacing[0]  # in mm
-	height = 2  # in mm
-	mPixel = np.uint8(np.round(outerD / ConstPixelSpacing[0]))
-	if mPixel % 2 != 0:
-		mPixel += 16
-	else:
-		mPixel += 15
-	mLayer = height / ConstPixelSpacing[2]
+    """
+    Generates a model of the Fiducial marker, based on known geometry.
+    This routine returns vertices, faces and normals of the model,
+    as returned by the Marching Cubes algorithm.
+    """
+    global ConstPixelSpacing
+    ConstPixelSpacing = PixelSpacing
+    innerD = 4  # in mm
+    outerD = 14 * ConstPixelSpacing[0]  # in mm
+    height = 2  # in mm
+    mPixel = np.uint8(np.round(outerD / ConstPixelSpacing[0]))
+    if mPixel % 2 != 0:
+        mPixel += 16
+    else:
+        mPixel += 15
+    mLayer = height / ConstPixelSpacing[2]
 
-	fiducial = np.zeros((mPixel, mPixel, int(mLayer) + 2))
-	for l in range(fiducial.shape[2]):
-		for i in range(mPixel):
-			for j in range(mPixel):
-				d = np.sqrt(((i - (mPixel - 1) * 0.5) * ConstPixelSpacing[0])**2 +
-							((j - (mPixel - 1) * 0.5) * ConstPixelSpacing[1])**2)
-				if d <= outerD * 0.5 and d >= innerD * 0.5 and l <= mLayer:
-					fiducial[i, j, l] = 1
-				elif d > (outerD * 0.5) and d < ((outerD * 0.5) + 1) and l <= mLayer:
-					fiducial[i, j, l] = 1 - (d - (outerD * 0.5))
-				elif d < innerD * 0.5 and d < ((innerD * 0.5) - 1) and l <= mLayer:
-					fiducial[i, j, l] = 1 + (d - (innerD * 0.5))
-	disk = np.zeros((fiducial.shape[0], fiducial.shape[1]))
-	for i in range(fiducial.shape[0]):
-		for j in range(fiducial.shape[1]):
-			d = np.sqrt(((i - (mPixel - 1) * 0.5) * ConstPixelSpacing[0])**2 +
-						((j - (mPixel - 1) * 0.5) * ConstPixelSpacing[1])**2)
-			if d <= innerD * 0.5:
-				disk[i, j] = 1
-	x, y = np.where(disk == 1)
-	z = np.zeros(x.size)
-	x = np.float64(x) * ConstPixelSpacing[0]
-	y = np.float64(y) * ConstPixelSpacing[1]
-	x -= np.sum(x) / x.size
-	y -= np.sum(y) / y.size
-	vert = np.stack([x, y, z], axis=1)
+    fiducial = np.zeros((mPixel, mPixel, int(mLayer) + 2))
+    for l in range(fiducial.shape[2]):
+        for i in range(mPixel):
+            for j in range(mPixel):
+                d = np.sqrt(((i - (mPixel - 1) * 0.5) * ConstPixelSpacing[0])**2 +
+                            ((j - (mPixel - 1) * 0.5) * ConstPixelSpacing[1])**2)
+                if d <= outerD * 0.5 and d >= innerD * 0.5 and l <= mLayer:
+                    fiducial[i, j, l] = 1
+                elif d > (outerD * 0.5) and d < ((outerD * 0.5) + 1) and l <= mLayer:
+                    fiducial[i, j, l] = 1 - (d - (outerD * 0.5))
+                elif d < innerD * 0.5 and d < ((innerD * 0.5) - 1) and l <= mLayer:
+                    fiducial[i, j, l] = 1 + (d - (innerD * 0.5))
+    disk = np.zeros((fiducial.shape[0], fiducial.shape[1]))
+    for i in range(fiducial.shape[0]):
+        for j in range(fiducial.shape[1]):
+            d = np.sqrt(((i - (mPixel - 1) * 0.5) * ConstPixelSpacing[0])**2 +
+                        ((j - (mPixel - 1) * 0.5) * ConstPixelSpacing[1])**2)
+            if d <= innerD * 0.5:
+                disk[i, j] = 1
+    x, y = np.where(disk == 1)
+    z = np.zeros(x.size)
+    x = np.float64(x) * ConstPixelSpacing[0]
+    y = np.float64(y) * ConstPixelSpacing[1]
+    x -= np.sum(x) / x.size
+    y -= np.sum(y) / y.size
+    vert = np.stack([x, y, z], axis=1)
 
-	vertFiducial, fFiducial, nFiducial, valFiducial = measure.marching_cubes_lewiner(
-		fiducial, 0, ConstPixelSpacing)
+    vertFiducial, fFiducial, nFiducial, valFiducial = measure.marching_cubes_lewiner(
+        fiducial, 0, ConstPixelSpacing)
 
-	# mlab.triangular_mesh([vert[0] for vert in vertFiducial],
-	# 				[vert[1] for vert in vertFiducial],
-	# 				[vert[2] for vert in vertFiducial], fFiducial)
-	# mlab.show()
+    # mlab.triangular_mesh([vert[0] for vert in vertFiducial],
+    #               [vert[1] for vert in vertFiducial],
+    #               [vert[2] for vert in vertFiducial], fFiducial)
+    # mlab.show()
 
-	# assert False, "Stop" 
+    # assert False, "Stop"
 
-	vertFiducial = vertFiducial - np.sum(
-		vertFiducial[vertFiducial[:, 2] <= 0],
-		axis=0) / vertFiducial[vertFiducial[:, 2] <= 0].shape[0]
-	vertFiducial = np.append(vertFiducial, vert, axis=0)
-	return vertFiducial, fFiducial, nFiducial
+    vertFiducial = vertFiducial - np.sum(
+        vertFiducial[vertFiducial[:, 2] <= 0],
+        axis=0) / vertFiducial[vertFiducial[:, 2] <= 0].shape[0]
+    vertFiducial = np.append(vertFiducial, vert, axis=0)
+    return vertFiducial, fFiducial, nFiducial
 
 
 def filterFiducials(cost, patches, points, numMarkers):
-	points = np.float64(copy.deepcopy(points)) * ConstPixelSpacing
-	cost = np.array(cost)
-	bestIndices = np.argsort(cost)
-	bestIndices = bestIndices[:numMarkers]
-	# for i in range(bestIndices.shape[0]):
-	# 	print type(bestIndices[i])
-	# print bestIndices
-	# print bestIndices.shape
-	# print cost.shape
-	# print np.max(bestIndices)
-	bestCosts = cost[bestIndices]
-	# points = points[bestIndices,:]
-	# bestCosts = bestCosts[:numMarkers]
-	# print bestIndices.shape
-	bestPoints = points[bestIndices,:]
-	# print bestPoints.shape
+    points = np.float64(copy.deepcopy(points)) * ConstPixelSpacing
+    cost = np.array(cost)
+    bestIndices = np.argsort(cost)
+    bestIndices = bestIndices[:numMarkers]
+    # for i in range(bestIndices.shape[0]):
+    #   print type(bestIndices[i])
+    # print bestIndices
+    # print bestIndices.shape
+    # print cost.shape
+    # print np.max(bestIndices)
+    bestCosts = cost[bestIndices]
+    # points = points[bestIndices,:]
+    # bestCosts = bestCosts[:numMarkers]
+    # print bestIndices.shape
+    bestPoints = points[bestIndices, :]
+    # print bestPoints.shape
 
-	filteredIndices = []
+    filteredIndices = []
 
-	# Perform Mean Shift Clustering
-	meanShift = MeanShift(bandwidth=10)
-	# params = meanShift.get_params()
-	# bw = params['bandwidth']
-	# meanShift.set_params(bandwidth=bw/10.0)
-	meanShift.fit(bestPoints)
-	labels = meanShift.labels_
-	nClusters = len(np.unique(labels))
-	print nClusters
-	for i in range(nClusters):
-		costsPerFiducial = bestCosts[labels == i]
-		print costsPerFiducial.shape
-		indicesPerFiducial = bestIndices[labels == i]
-		filteredIndices.append(indicesPerFiducial[np.argmin(costsPerFiducial)])
+    # Perform Mean Shift Clustering
+    meanShift = MeanShift(bandwidth=10)
+    # params = meanShift.get_params()
+    # bw = params['bandwidth']
+    # meanShift.set_params(bandwidth=bw/10.0)
+    meanShift.fit(bestPoints)
+    labels = meanShift.labels_
+    nClusters = len(np.unique(labels))
+    print nClusters
+    for i in range(nClusters):
+        costsPerFiducial = bestCosts[labels == i]
+        print costsPerFiducial.shape
+        indicesPerFiducial = bestIndices[labels == i]
+        filteredIndices.append(indicesPerFiducial[np.argmin(costsPerFiducial)])
 
-	return filteredIndices
+    return filteredIndices
+
 
 def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
-	"""
-	This routine performs template matching between a patch around each
-	point of interest (from the point cloud), and a known Fiducial marker
-	model. It returns the cost (normalised distance from ICP) and the patches.
-	"""
-	global vFiducial, fFiducial, ConstPixelSpacing
-	start_time = time.time()
-	ConstPixelSpacing = PixelSpacing
+    """
+    This routine performs template matching between a patch around each
+    point of interest (from the point cloud), and a known Fiducial marker
+    model. It returns the cost (normalised distance from ICP) and the patches.
+    """
+    global vFiducial, fFiducial, ConstPixelSpacing
+    start_time = time.time()
+    ConstPixelSpacing = PixelSpacing
 
-	if vFiducial.size == 0:
-		vFiducial, _, _ = genFiducialModel(ConstPixelSpacing)
-	alignedPatches = []
-	patches = []
-	point = np.float64(copy.deepcopy(poi)) * ConstPixelSpacing
-	neighbor1 = getNeighborVoxel(pointCloud, point, r=4.8)
-	neighbor1 = np.array(neighbor1)
+    if vFiducial.size == 0:
+        vFiducial, _, _ = genFiducialModel(ConstPixelSpacing)
+    alignedPatches = []
+    patches = []
+    point = np.float64(copy.deepcopy(poi)) * ConstPixelSpacing
+    neighbor1 = getNeighborVoxel(pointCloud, point, r=4.8)
+    neighbor1 = np.array(neighbor1)
+    cost = np.array([])
+    count = 0
+    sigma = 100  # A large value
+    points_thresh = 400  # A threshold on number of points in a typical patch
+    for i in range(len(point)):
+        alignedPatch, _, _ = genPatch(pointCloud, normalstotal, point[
+            i], np.array(neighbor1[i]).astype(int), ConstPixelSpacing)
+        if(len(alignedPatch) > points_thresh):
+            cost = np.array(
+                cost, icp(alignedPatch, vFiducial, max_iterations=1)[1])
+        else:
+            count += 1
+            cost = np.array(cost, sigma)
+        # alignedPatches.append(aligP)
+        # patches.append(P)
+    # patches = np.array(patches)  # Orignal patch
+    # alignedPatches = np.array(alignedPatches)  # Transformed patch
 
-	for i in range(len(point)):
-		algiP, aligN, P = genPatch(pointCloud, normalstotal, point[
-			i], np.array(neighbor1[i]).astype(int), ConstPixelSpacing)
-		alignedPatches.append(algiP)
-		patches.append(P)
-	patches = np.array(patches)  # Orignal patch
-	alignedPatches = np.array(alignedPatches)  # Transformed patch
+    # cost = []
+    # count = 0
+    # sigma = 100  # A large value
+    # points_thresh = 400  # A threshold on number of points in a typical patch
+    # for i in range(len(point)):
+    #     if(len(alignedPatches[i]) > points_thresh):
+    #         cost.append(icp(alignedPatches[i], vFiducial, max_iterations=1)[1])
+    #     else:
+    #         count += 1
+    #         cost.append(sigma)
+    print("ICP Completed!" + str(count) + " of small point clouds detected!")
 
-	cost = []
-	count = 0
-	sigma = 100  # A large value
-	points_thresh = 400  # A threshold on number of points in a typical patch
-	for i in range(len(point)):
-		if(len(alignedPatches[i]) > points_thresh):
-			cost.append(icp(alignedPatches[i], vFiducial, max_iterations=1)[1])
-		else:
-			count += 1
-			cost.append(sigma)
-	print("ICP Completed!" + str(count) + " of small point clouds detected!")
+    return cost  # , patches
 
-	return cost, patches
 
 def visualiseFiducials(cost, patches, points, pointCloud, verts, faces, num_markers=100, show_skull=True, show_markers=True):
     """
