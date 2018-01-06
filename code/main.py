@@ -45,10 +45,10 @@ print("---- %s seconds ----- Extracted Surface Voxels!" %
 normals, surfaceVoxelCoord, verts, faces = findSurfaceNormals(copy.deepcopy(
     surfaceVoxels), voxelData, ConstPixelSpacing)
 
-mlab.triangular_mesh([vert[0] for vert in verts],
-                             [vert[1] for vert in verts],
-                             [vert[2] for vert in verts], faces)
-mlab.show()
+# mlab.triangular_mesh([vert[0] for vert in verts],
+#                              [vert[1] for vert in verts],
+#                              [vert[2] for vert in verts], faces)
+# mlab.show()
 
 assert False, "stop"
 print("---- %s seconds ----- Extracted %s Surface Normals!" %
