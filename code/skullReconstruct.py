@@ -122,7 +122,6 @@ def get3DRecon(data, path):
     #     # Invalid DICOM data
     #     print("Handling incompatible dicom slices")
     #     # voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(data)
-        
     #     try:
     #         # makeCompatible(data, prec=5)
     #         voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(data)
@@ -140,6 +139,7 @@ def get3DRecon(data, path):
 
     sliceSpacing = abs(data[0].ImagePositionPatient[2] - data[1].ImagePositionPatient[2])
     ConstPixelSpacing = [sliceSpacing, data[0].PixelSpacing[0], data[0].PixelSpacing[1]]
+
     return voxel_ndarray, ConstPixelSpacing
 
 
