@@ -278,12 +278,12 @@ def genFiducialModel(PixelSpacing):
 	vertFiducial, fFiducial, nFiducial, valFiducial = measure.marching_cubes_lewiner(
 		fiducial, 0, ConstPixelSpacing)
 
-	mlab.triangular_mesh([vert[0] for vert in vertFiducial],
-					[vert[1] for vert in vertFiducial],
-					[vert[2] for vert in vertFiducial], fFiducial)
-	mlab.show()
+	# mlab.triangular_mesh([vert[0] for vert in vertFiducial],
+	# 				[vert[1] for vert in vertFiducial],
+	# 				[vert[2] for vert in vertFiducial], fFiducial)
+	# mlab.show()
 
-	assert False, "Stop" 
+	# assert False, "Stop" 
 
 	vertFiducial = vertFiducial - np.sum(
 		vertFiducial[vertFiducial[:, 2] <= 0],
