@@ -16,9 +16,6 @@ from sklearn.cluster import MeanShift
 from mayavi import mlab
 from skullReconstruct import *
 from genFiducialPC import *
-# import matplotlib:
-# import matplotlib.pyplot as plt
-# matplotlib.use('TkAgg')
 import copy
 import time
 
