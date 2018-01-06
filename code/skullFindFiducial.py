@@ -15,6 +15,7 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import MeanShift
 from mayavi import mlab
 from skullReconstruct import *
+from joblib import Parallel, delayed
 # import matplotlib:
 # import matplotlib.pyplot as plt
 # matplotlib.use('TkAgg')
@@ -331,6 +332,8 @@ def filterFiducials(cost, patches, points, numMarkers):
     return filteredIndices
 
 
+sigma = 100  # A large value
+points_thresh = 400  # A threshold on number of points in a typical patch
 def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     """
     This routine performs template matching between a patch around each
@@ -346,8 +349,14 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     alignedPatches = []
     patches = []
     point = np.float64(copy.deepcopy(poi)) * ConstPixelSpacing
+    
     neighbor1 = getNeighborVoxel(pointCloud, point, r=4.8)
     neighbor1 = np.array(neighbor1)
+
+    # results = list(Parallel(n_jobs=30)(delayed(computePointCloudDistance)(pnt, n_pnt, pointCloud, normalstotal) for pnt, n_pnt in zip(point, neighbor1)))
+    # cost = np.array([result[0] for result in results])
+    # count = np.count_nonzero([result[1] for result in results])
+    
     cost = np.array([])
     count = 0
     sigma = 100  # A large value
@@ -361,6 +370,8 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
         else:
             count += 1
             cost = np.array(cost, sigma)
+
+
         # alignedPatches.append(aligP)
         # patches.append(P)
     # patches = np.array(patches)  # Orignal patch
@@ -379,6 +390,19 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     print("ICP Completed!" + str(count) + " of small point clouds detected!")
 
     return cost  # , patches
+
+
+def computePointCloudDistance(point, neighbor_pnt, pointCloud, normalstotal):
+    cost = sigma
+    count = 0
+    alignedPatch, _, _ = genPatch(pointCloud, normalstotal, point,
+        np.array(neighbor_pnt).astype(int), ConstPixelSpacing)
+    if(len(alignedPatch) > points_thresh):
+        cost = icp(alignedPatch, vFiducial, max_iterations=1)[1]
+    else:
+        count = 1
+
+    return cost, count
 
 
 def visualiseFiducials(cost, patches, points, pointCloud, verts, faces, num_markers=100, show_skull=True, show_markers=True):
