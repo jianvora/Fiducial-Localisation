@@ -120,10 +120,13 @@ def get3DRecon(data):
         try:
             voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(data)
         except:
+            print("Handling incompatible dicom slices")
             voxel_ndarray = []
             for i in range(len(data)):
+                # print data[i].pixel_array.shape
+                # assert False, "Stop Code"
                 voxel_ndarray.append(data[i].pixel_array)
-            voxel_ndarray = np.array(voxel_ndarray)
+            voxel_ndarray = np.stack(voxel_ndarray, axis=2)
             # multi_slice_viewer(voxel_ndarray)
             # plt.show()
 

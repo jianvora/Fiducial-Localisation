@@ -30,8 +30,8 @@ PathDicom = "/Users/ritwickchaudhry/Downloads/2012.09.15 ACRELIC2 CT Scan Data f
 data = readDicomData(PathDicom)
 voxelData, ConstPixelSpacing = get3DRecon(data)
 print("Constant Pixel Spacing: " + str(ConstPixelSpacing))
-voxelData, ConstPixelSpacing = interpolate_image(
-    voxelData, (1, 1, 6))  # interpolating the image
+# voxelData, ConstPixelSpacing = interpolate_image(
+#     voxelData, (1, 1, 6))  # interpolating the image
 voxelDataThresh = applyThreshold(copy.deepcopy(voxelData))
 print(ConstPixelSpacing)
 print("---- %s seconds ----- Extracted %s Slices!" %
@@ -45,7 +45,12 @@ print("---- %s seconds ----- Extracted Surface Voxels!" %
 normals, surfaceVoxelCoord, verts, faces = findSurfaceNormals(copy.deepcopy(
     surfaceVoxels), voxelData, ConstPixelSpacing)
 
+mlab.triangular_mesh([vert[0] for vert in verts],
+                             [vert[1] for vert in verts],
+                             [vert[2] for vert in verts], faces)
+mlab.show()
 
+assert False, "stop"
 print("---- %s seconds ----- Extracted %s Surface Normals!" %
       (time.time() - start_time, len(surfaceVoxelCoord)))
 
@@ -65,7 +70,7 @@ print("---- %s seconds ----- Finished comparing with Fiducial Model!" %
       (time.time() - start_time))
 
 # Visualise in Mayavi
-# visualiseFiducials(costs, patches, surfaceVoxelCoord_sample, surfaceVoxelCoord, verts, faces, num_markers=25)
+visualiseFiducials(costs, patches, surfaceVoxelCoord_sample, surfaceVoxelCoord, verts, faces, num_markers=25)
 
 # for i in range(num_markers):
 # 	patch = patches[indices[i]]
