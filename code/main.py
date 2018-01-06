@@ -50,7 +50,7 @@ normals, surfaceVoxelCoord, verts, faces = findSurfaceNormals(copy.deepcopy(
 #                              [vert[2] for vert in verts], faces)
 # mlab.show()
 
-assert False, "stop"
+# assert False, "stop"
 print("---- %s seconds ----- Extracted %s Surface Normals!" %
       (time.time() - start_time, len(surfaceVoxelCoord)))
 
