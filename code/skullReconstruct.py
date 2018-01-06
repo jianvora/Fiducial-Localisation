@@ -18,6 +18,7 @@ from sklearn.neighbors import NearestNeighbors
 from skimage import measure
 from skullFindFiducial import *
 import scipy.ndimage as nd
+from dicom.contrib import pydicom_series
 
 ConstPixelSpacing = (1.0, 1.0, 1.0)
 
@@ -58,15 +59,15 @@ ConstPixelSpacing = (1.0, 1.0, 1.0)
 #     ax.images[0].set_array(volume[ax.index])
 
 
-def makeCompatible(dicomData, prec=5):
-    for i in range(len(dicomData)):
-        a = dicomData[i].ImageOrientationPatient
-        #print dicomData[i].pixel_array
-        a[0] = round(a[0], prec)
-        a[1] = round(a[1], prec)
-        a[2] = round(a[2], prec)
-        a[3] = round(a[3], prec)
-        dicomData[i].ImageOrientationPatient = a
+# def makeCompatible(dicomData, prec=5):
+#     for i in range(len(dicomData)):
+#         a = dicomData[i].ImageOrientationPatient
+#         #print dicomData[i].pixel_array
+#         a[0] = round(a[0], prec)
+#         a[1] = round(a[1], prec)
+#         a[2] = round(a[2], prec)
+#         a[3] = round(a[3], prec)
+#         dicomData[i].ImageOrientationPatient = a
 
 
 
@@ -97,40 +98,48 @@ def makeCompatible(dicomData, prec=5):
         dicomData[i].ImageOrientationPatient = a
 
 
-def get3DRecon(data):
+def get3DRecon(data, path):
     """
     Performs 3D reconstruction from the given DICOM data, and
     returns a voxel array and the pixel spacing factors.
     """
     global ConstPixelSpacing
-    del(data[0])
-    RefDs = data[0]
+    # del(data[0])
+    # RefDs = data[0]
 
-    ConstPixelSpacing = (float(RefDs.PixelSpacing[0]), float(
-        RefDs.PixelSpacing[1]), float(RefDs.SliceThickness))
+    # ConstPixelSpacing = (float(RefDs.PixelSpacing[0]), float(
+        # RefDs.PixelSpacing[1]), float(RefDs.SliceThickness))
 
-    try:
-        voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(data)
-    except dicom_numpy.DicomImportException as e:
-        # Invalid DICOM data
-        print("Handling incompatible dicom slices")
-        # makeCompatible(data, prec=5)
-        # voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(data)
-        
-        try:
-            voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(data)
-        except:
-            print("Handling incompatible dicom slices")
-            voxel_ndarray = []
-            for i in range(len(data)):
-                # print data[i].pixel_array.shape
-                # assert False, "Stop Code"
-                voxel_ndarray.append(data[i].pixel_array)
-            voxel_ndarray = np.stack(voxel_ndarray, axis=2)
-            # multi_slice_viewer(voxel_ndarray)
-            # plt.show()
+    series = pydicom_series.read_files(path, False, True) # second to not show progress bar, third to retrieve data
+    voxel_ndarray = series[1].get_pixel_array()
 
-            ijk_to_xyz = np.eye(4)
+    # info = series[1].info
+
+
+    # try:
+    #     voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(data)
+    # except dicom_numpy.DicomImportException as e:
+    #     # Invalid DICOM data
+    #     print("Handling incompatible dicom slices")
+    #     # voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(data)
+    #     try:
+    #         # makeCompatible(data, prec=5)
+    #         voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(data)
+    #     except:
+    #         print("Handling incompatible dicom slices")
+    #         voxel_ndarray = []
+    #         for i in range(len(data)):
+    #             # print data[i].pixel_array.shape
+    #             # assert False, "Stop Code"
+    #             voxel_ndarray.append(data[i].pixel_array)
+    #         voxel_ndarray = np.stack(voxel_ndarray, axis=2)
+    #         # multi_slice_viewer(voxel_ndarray)
+    #         # plt.show()
+    #         ijk_to_xyz = np.eye(4)
+
+    sliceSpacing = abs(data[0].ImagePositionPatient[2] - data[1].ImagePositionPatient[2])
+    ConstPixelSpacing = [sliceSpacing, data[0].PixelSpacing[0], data[0].PixelSpacing[1]]
+
     return voxel_ndarray, ConstPixelSpacing
 
 
