@@ -278,12 +278,12 @@ def genFiducialModel(PixelSpacing):
 	vertFiducial, fFiducial, nFiducial, valFiducial = measure.marching_cubes_lewiner(
 		fiducial, 0, ConstPixelSpacing)
 
-	mlab.triangular_mesh([vert[0] for vert in vertFiducial],
-					[vert[1] for vert in vertFiducial],
-					[vert[2] for vert in vertFiducial], fFiducial)
-	mlab.show()
+	# mlab.triangular_mesh([vert[0] for vert in vertFiducial],
+	# 				[vert[1] for vert in vertFiducial],
+	# 				[vert[2] for vert in vertFiducial], fFiducial)
+	# mlab.show()
 
-	assert False, "Stop" 
+	# assert False, "Stop" 
 
 	vertFiducial = vertFiducial - np.sum(
 		vertFiducial[vertFiducial[:, 2] <= 0],
@@ -294,14 +294,21 @@ def genFiducialModel(PixelSpacing):
 
 def filterFiducials(cost, patches, points, numMarkers):
 	points = np.float64(copy.deepcopy(points)) * ConstPixelSpacing
-	
-	bestCosts = np.sort(cost)
-	bestCosts = bestCosts[:numMarkers]
+	cost = np.array(cost)
 	bestIndices = np.argsort(cost)
 	bestIndices = bestIndices[:numMarkers]
-	print bestIndices.shape
+	# for i in range(bestIndices.shape[0]):
+	# 	print type(bestIndices[i])
+	# print bestIndices
+	# print bestIndices.shape
+	# print cost.shape
+	# print np.max(bestIndices)
+	bestCosts = cost[bestIndices]
+	# points = points[bestIndices,:]
+	# bestCosts = bestCosts[:numMarkers]
+	# print bestIndices.shape
 	bestPoints = points[bestIndices,:]
-	print bestPoints.shape
+	# print bestPoints.shape
 
 	filteredIndices = []
 

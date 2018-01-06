@@ -19,7 +19,7 @@ import time
 from mayavi import mlab
 import copy
 
-ConstPixelSpacing = (1.0, 1.0, 1.0)
+# ConstPixelSpacing = (1.0, 1.0, 1.0)
 
 start_time = time.time()
 
@@ -28,7 +28,7 @@ start_time = time.time()
 PathDicom = "/Users/ritwickchaudhry/Downloads/2012.09.15 ACRELIC2 CT Scan Data from ACTREC/09171420"
 
 data = readDicomData(PathDicom)
-voxelData, ConstPixelSpacing = get3DRecon(data)
+voxelData, ConstPixelSpacing = get3DRecon(data, PathDicom)
 print("Constant Pixel Spacing: " + str(ConstPixelSpacing))
 # voxelData, ConstPixelSpacing = interpolate_image(
 #     voxelData, (1, 1, 6))  # interpolating the image
@@ -45,10 +45,10 @@ print("---- %s seconds ----- Extracted Surface Voxels!" %
 normals, surfaceVoxelCoord, verts, faces = findSurfaceNormals(copy.deepcopy(
     surfaceVoxels), voxelData, ConstPixelSpacing)
 
-# mlab.triangular_mesh([vert[0] for vert in verts],
-#                              [vert[1] for vert in verts],
-#                              [vert[2] for vert in verts], faces)
-# mlab.show()
+mlab.triangular_mesh([vert[0] for vert in verts],
+                             [vert[1] for vert in verts],
+                             [vert[2] for vert in verts], faces)
+mlab.show()
 
 # assert False, "stop"
 print("---- %s seconds ----- Extracted %s Surface Normals!" %
