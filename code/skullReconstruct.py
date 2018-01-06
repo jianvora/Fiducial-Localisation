@@ -130,7 +130,7 @@ def get3DRecon(data):
             # multi_slice_viewer(voxel_ndarray)
             # plt.show()
 
-            ijk_to_xyz = np.eye(4)
+            ijk_to_xyz = np.eye(4) # @TODO
     return voxel_ndarray, ConstPixelSpacing
 
 
