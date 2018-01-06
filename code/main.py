@@ -45,10 +45,10 @@ print("---- %s seconds ----- Extracted Surface Voxels!" %
 normals, surfaceVoxelCoord, verts, faces = findSurfaceNormals(copy.deepcopy(
     surfaceVoxels), voxelData, ConstPixelSpacing)
 
-mlab.triangular_mesh([vert[0] for vert in verts],
-                             [vert[1] for vert in verts],
-                             [vert[2] for vert in verts], faces)
-mlab.show()
+# mlab.triangular_mesh([vert[0] for vert in verts],
+#                              [vert[1] for vert in verts],
+#                              [vert[2] for vert in verts], faces)
+# mlab.show()
 
 # assert False, "stop"
 print("---- %s seconds ----- Extracted %s Surface Normals!" %
@@ -63,14 +63,14 @@ surfaceVoxelCoord_sample = np.uint16(np.float64(
 
 print("---- %s seconds ----- Sampled %s Voxels!" %
       (time.time() - start_time, len(surfaceVoxelCoord_sample)))
-costs, patches = checkFiducial(surfaceVoxelCoord,
+costs, neighbourIndices = checkFiducial(surfaceVoxelCoord,
                                surfaceVoxelCoord_sample, normals, ConstPixelSpacing)
 
 print("---- %s seconds ----- Finished comparing with Fiducial Model!" %
       (time.time() - start_time))
 
 # Visualise in Mayavi
-visualiseFiducials(costs, patches, surfaceVoxelCoord_sample, surfaceVoxelCoord, verts, faces, num_markers=25)
+visualiseFiducials(costs, neighbourIndices, surfaceVoxelCoord_sample, surfaceVoxelCoord, verts, faces, num_markers=25)
 
 # for i in range(num_markers):
 # 	patch = patches[indices[i]]

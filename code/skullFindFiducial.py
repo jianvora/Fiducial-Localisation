@@ -294,7 +294,7 @@ def genFiducialModel(PixelSpacing):
     return vertFiducial, fFiducial, nFiducial
 
 
-def filterFiducials(cost, patches, points, numMarkers):
+def filterFiducials(cost, points, numMarkers):
     points = np.float64(copy.deepcopy(points)) * ConstPixelSpacing
     cost = np.array(cost)
     bestIndices = np.argsort(cost)
@@ -341,6 +341,11 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     model. It returns the cost (normalised distance from ICP) and the patches.
     """
     global vFiducial, fFiducial, ConstPixelSpacing
+    global globalPointCloud
+    global globalNormalstotal
+    globalPointCloud = pointCloud
+    globalNormalstotal = normalstotal
+
     start_time = time.time()
     ConstPixelSpacing = PixelSpacing
 
@@ -349,28 +354,30 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     alignedPatches = []
     patches = []
     point = np.float64(copy.deepcopy(poi)) * ConstPixelSpacing
+
+    print len(point)
     
     neighbor1 = getNeighborVoxel(pointCloud, point, r=4.8)
     neighbor1 = np.array(neighbor1)
 
-    # results = list(Parallel(n_jobs=30)(delayed(computePointCloudDistance)(pnt, n_pnt, pointCloud, normalstotal) for pnt, n_pnt in zip(point, neighbor1)))
-    # cost = np.array([result[0] for result in results])
-    # count = np.count_nonzero([result[1] for result in results])
+    results = list(Parallel(n_jobs=2)(delayed(computePointCloudDistance)(pnt, n_pnt) for pnt, n_pnt in zip(point, neighbor1)))
+    cost = np.array([result[0] for result in results], dtype=np.float64)
+    count = np.count_nonzero([result[1] for result in results])
     
-    cost = np.array([])
-    count = 0
-    sigma = 100  # A large value
-    points_thresh = 400  # A threshold on number of points in a typical patch
-    for i in range(len(point)):
-        alignedPatch, _, _ = genPatch(pointCloud, normalstotal, point[
-            i], np.array(neighbor1[i]).astype(int), ConstPixelSpacing)
-        if(len(alignedPatch) > points_thresh):
-            cost = np.array(
-                cost, icp(alignedPatch, vFiducial, max_iterations=1)[1])
-        else:
-            count += 1
-            cost = np.array(cost, sigma)
-
+    # Parallelized code
+    # cost = np.array([], dtype=np.float64)
+    # count = 0
+    # sigma = 100.0  # A large value
+    # points_thresh = 400  # A threshold on number of points in a typical patch
+    # for i in range(len(point)):
+    #     alignedPatch, _, _ = genPatch(pointCloud, normalstotal, point[
+    #         i], np.array(neighbor1[i]).astype(int), ConstPixelSpacing)
+    #     if(len(alignedPatch) > points_thresh):
+    #         cost = np.append(
+    #             cost, icp(alignedPatch, vFiducial, max_iterations=1)[1])
+    #     else:
+    #         count += 1
+    #         cost = np.append(cost, sigma)
 
         # alignedPatches.append(aligP)
         # patches.append(P)
@@ -389,13 +396,12 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     #         cost.append(sigma)
     print("ICP Completed!" + str(count) + " of small point clouds detected!")
 
-    return cost  # , patches
+    return cost, neighbor1  # , patches
 
-
-def computePointCloudDistance(point, neighbor_pnt, pointCloud, normalstotal):
+def computePointCloudDistance(point, neighbor_pnt):
     cost = sigma
     count = 0
-    alignedPatch, _, _ = genPatch(pointCloud, normalstotal, point,
+    alignedPatch, _, _ = genPatch(globalPointCloud, globalNormalstotal, point,
         np.array(neighbor_pnt).astype(int), ConstPixelSpacing)
     if(len(alignedPatch) > points_thresh):
         cost = icp(alignedPatch, vFiducial, max_iterations=1)[1]
@@ -405,13 +411,19 @@ def computePointCloudDistance(point, neighbor_pnt, pointCloud, normalstotal):
     return cost, count
 
 
-def visualiseFiducials(cost, patches, points, pointCloud, verts, faces, num_markers=100, show_skull=True, show_markers=True):
+def visualiseFiducials(cost, neighbourIndices, points, pointCloud, verts, faces, num_markers=100, show_skull=True, show_markers=True):
     """
     Collects the top __ fiducial markers, filters them using the Mean Shift algorithm,
     and then renders with the original 3D scan, on Mayavi for
     visualisation and verification.
     """
-    indices = filterFiducials(cost, patches, points, num_markers)
+    indices = np.array(filterFiducials(cost, points, num_markers))
+    # print neighbourIndices.shape
+    # print indices.shape
+    # fiducialNeighbourIndices = neighbourIndices[indices,:]
+    # print fiducialNeighbourIndices.shape
+    # fiducialNeighbours = pointCloud[fiducialNeighbourIndices,:]
+    # print fiducialNeighbours.shape
     print len(indices)
     # cost_sorted = np.sort(cost)
     colormap = np.random.rand(100, 3)
@@ -420,10 +432,13 @@ def visualiseFiducials(cost, patches, points, pointCloud, verts, faces, num_mark
                              [vert[1] for vert in verts],
                              [vert[2] for vert in verts], faces)
     if show_markers:
+
         # Plot the top __ markers!
         for i in range(len(indices)):
-            print i
-            patch = patches[indices[i]]
+            # print i
+            # TODO - Find Patch now
+            fiducialNeighbourIndices = neighbourIndices[indices[i]]
+            patch = pointCloud[fiducialNeighbourIndices]
             mlab.points3d(patch[:, 0], patch[:, 1], patch[
                 :, 2], color=tuple(colormap[i]))
 
