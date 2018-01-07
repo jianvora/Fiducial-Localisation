@@ -21,6 +21,27 @@ import scipy.ndimage as nd
 from dicom.contrib import pydicom_series
 
 ConstPixelSpacing = (1.0, 1.0, 1.0)
+def GenerateTransform(slice_datasets):
+    image_orientation = slice_datasets.ImageOrientationPatient
+    row_cosine, column_cosine, slice_cosine = _extract_cosines(image_orientation)
+
+    row_spacing, column_spacing = slice_datasets.PixelSpacing
+    slice_spacing = slice_datasets.SliceThickness
+
+    transform = np.identity(4, dtype=np.float32)
+
+    transform[:3, 0] = row_cosine*column_spacing
+    transform[:3, 1] = column_cosine*row_spacing
+    transform[:3, 2] = slice_cosine*slice_spacing
+
+    transform[:3, 3] = slice_datasets.ImagePositionPatient
+    return transform
+
+def _extract_cosines(image_orientation):
+    row_cosine = np.array(image_orientation[:3])
+    column_cosine = np.array(image_orientation[3:])
+    slice_cosine = np.cross(row_cosine, column_cosine)
+    return row_cosine, column_cosine, slice_cosine
 
 # def remove_keymap_conflicts(new_keys_set):
 #     for prop in plt.rcParams:
@@ -115,6 +136,13 @@ def get3DRecon(data, path):
 
     # info = series[1].info
 
+    info = series[2].info
+    ijk_to_xyz = GenerateTransform(info)
+    print(ijk_to_xyz)
+    # _, ijk_to_xyz = dicom_numpy.combine_slices(data)
+    # print(ijk_to_xyz)
+    sliceSpacing = abs(data[0].ImagePositionPatient[2] - data[1].ImagePositionPatient[2])
+    ConstPixelSpacing = [sliceSpacing, data[0].PixelSpacing[0], data[0].PixelSpacing[1]]
 
     # try:
     #     voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(data)
@@ -140,7 +168,8 @@ def get3DRecon(data, path):
     sliceSpacing = abs(data[0].ImagePositionPatient[2] - data[1].ImagePositionPatient[2])
     ConstPixelSpacing = [sliceSpacing, data[0].PixelSpacing[0], data[0].PixelSpacing[1]]
 
-    return voxel_ndarray, ConstPixelSpacing
+    
+    return voxel_ndarray, ConstPixelSpacing, ijk_to_xyz
 
 
 def applyThreshold(voxelData):

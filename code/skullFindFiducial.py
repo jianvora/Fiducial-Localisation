@@ -379,7 +379,7 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     return cost, neighbor1  # , patches
 
 
-def visualiseFiducials(cost, neighbourIndices, points, pointCloud, verts, faces, num_markers=100, show_skull=True, show_markers=True):
+def visualiseFiducials(cost, neighbourIndices, points, pointCloud, verts, faces,ijk_to_xyz,ConstPixelSpacing, num_markers=100, show_skull=True, show_markers=True):
     """
     Collects the top __ fiducial markers, filters them using the Mean Shift algorithm,
     and then renders with the original 3D scan, on Mayavi for
@@ -405,6 +405,10 @@ def visualiseFiducials(cost, neighbourIndices, points, pointCloud, verts, faces,
         for i in range(len(indices)):
             # print i
             # TODO - Find Patch now
+            point_ijk = points[indices[i]]/ConstPixelSpacing
+            point_ijk = np.append(point_ijk,1)
+            point_xyz = np.matmul(ijk_to_xyz,point_ijk)
+            print(point_xyz)
             fiducialNeighbourIndices = neighbourIndices[indices[i]]
             patch = pointCloud[fiducialNeighbourIndices]
             mlab.points3d(patch[:, 0], patch[:, 1], patch[

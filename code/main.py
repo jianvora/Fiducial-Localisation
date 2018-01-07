@@ -28,7 +28,7 @@ start_time = time.time()
 PathDicom = "/home/j_69/2012.09.15 ACRELIC2 CT Scan Data from ACTREC/09171420"
 
 data = readDicomData(PathDicom)
-voxelData, ConstPixelSpacing = get3DRecon(data, PathDicom)
+voxelData, ConstPixelSpacing, ijk_to_xyz = get3DRecon(data, PathDicom)
 print("Constant Pixel Spacing: " + str(ConstPixelSpacing))
 # voxelData, ConstPixelSpacing = interpolate_image(
 #     voxelData, (1, 1, 6))  # interpolating the image
@@ -70,7 +70,8 @@ print("---- %s seconds ----- Finished comparing with Fiducial Model!" %
       (time.time() - start_time))
 
 # Visualise in Mayavi
-visualiseFiducials(costs, neighbourIndices, surfaceVoxelCoord_sample, surfaceVoxelCoord, verts, faces, num_markers=100)
+visualiseFiducials(costs, neighbourIndices, surfaceVoxelCoord_sample, surfaceVoxelCoord, verts, faces,ijk_to_xyz,ConstPixelSpacing, num_markers=200)
+
 
 # for i in range(num_markers):
 # 	patch = patches[indices[i]]
