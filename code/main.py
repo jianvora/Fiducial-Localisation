@@ -23,7 +23,7 @@ ConstPixelSpacing = (1.0, 1.0, 1.0)
 
 start_time = time.time()
 
-PathDicom = "../2016.06.27 PVC Skull Model/Sequential Scan/DICOM/PA1/ST1/SE3"
+PathDicom = "/home/shubham/Github/FiducialLocalisationTemp/data/2016.06.27 PVC Skull Model/Sequential Scan/DICOM/PA1/ST1/SE2"
 
 data = readDicomData(PathDicom)
 voxelData, ConstPixelSpacing = get3DRecon(data)

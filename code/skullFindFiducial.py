@@ -15,6 +15,7 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.cluster import MeanShift
 from mayavi import mlab
 from skullReconstruct import *
+from genFiducialPC import *
 import matplotlib.pyplot as plt
 import copy
 import time
@@ -320,7 +321,9 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     ConstPixelSpacing = PixelSpacing
 
     if vFiducial.size == 0:
-        vFiducial, _, _ = genFiducialModel(ConstPixelSpacing)
+        # vFiducial, _, _ = genFiducialModel(ConstPixelSpacing)
+        vFiducial = genFiducialPC()
+
     alignedPatches = []
     patches = []
     point = np.float64(copy.deepcopy(poi)) * ConstPixelSpacing
