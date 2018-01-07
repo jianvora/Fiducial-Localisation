@@ -430,6 +430,14 @@ def visualiseFiducials(cost, neighbourIndices, points, pointCloud, verts, faces,
             # print i
             # TODO - Find Patch now
             point_ijk = points[indices[i]]/ConstPixelSpacing
+            # point_ijkt= copy.deepcopy(point_ijk)
+            # point_ijk[:,2] = point_ijkt[:,0]
+            # point_ijk[:,1] = point_ijkt[:,2]
+            # point_ijk[:,0] = point_ijkt[:,1]
+            print point_ijk.shape
+            print point_ijk
+            point_ijk = point_ijk[[1,2,0]]
+
             point_ijk = np.append(point_ijk,1)
             point_xyz = np.matmul(ijk_to_xyz,point_ijk)
             print(point_xyz)

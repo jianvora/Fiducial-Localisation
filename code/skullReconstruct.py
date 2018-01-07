@@ -144,7 +144,7 @@ def get3DRecon(data, path):
     # _, ijk_to_xyz = dicom_numpy.combine_slices(data)
     # print(ijk_to_xyz)
     sliceSpacing = abs(data[0].ImagePositionPatient[2] - data[1].ImagePositionPatient[2])
-    ConstPixelSpacing = [sliceSpacing, data[0].PixelSpacing[0], data[0].PixelSpacing[1]]
+    ConstPixelSpacing = [sliceSpacing, data[1].PixelSpacing[0], data[1].PixelSpacing[1]]
 
     # try:
     #     voxel_ndarray, ijk_to_xyz = dicom_numpy.combine_slices(data)
