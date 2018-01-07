@@ -23,15 +23,16 @@ import copy
 
 start_time = time.time()
 
-# PathDicom = "../2016.06.27 PVC Skull Model/Sequential Scan/DICOM/PA1/ST1/SE3"
+# PathDicom = "../2016.06.27 PVC Skull Model/Sequential Scan/DICOM/PA1/ST1/SE2"
 # PathDicom = "/Users/Parth/Downloads/09171700"
-PathDicom = "/home/j_69/2012.09.15 ACRELIC2 CT Scan Data from ACTREC/09171420"
+# PathDicom = "/Users/ritwickchaudhry/Downloads/2012.09.15 ACRELIC2 CT Scan Data from ACTREC/09171420"
+PathDicom = "/home/shubham/Github/FiducialLocalisation/data/2012.09.15 ACRELIC2 CT Scan Data from ACTREC/09171420"
 
 data = readDicomData(PathDicom)
 voxelData, ConstPixelSpacing, ijk_to_xyz = get3DRecon(data, PathDicom)
 print("Constant Pixel Spacing: " + str(ConstPixelSpacing))
-# voxelData, ConstPixelSpacing = interpolate_image(
-#     voxelData, (1, 1, 6))  # interpolating the image
+voxelData, ConstPixelSpacing = interpolate_image(
+     voxelData, (0.5, 0.5, 0.5))  # interpolating the image
 voxelDataThresh = applyThreshold(copy.deepcopy(voxelData))
 print(ConstPixelSpacing)
 print("---- %s seconds ----- Extracted %s Slices!" %
@@ -54,7 +55,7 @@ normals, surfaceVoxelCoord, verts, faces = findSurfaceNormals(copy.deepcopy(
 print("---- %s seconds ----- Extracted %s Surface Normals!" %
       (time.time() - start_time, len(surfaceVoxelCoord)))
 
-sampling_factor = 5
+sampling_factor = 20
 normals_sample = normals[::sampling_factor]
 surfaceVoxelCoord_sample = surfaceVoxelCoord[::sampling_factor]
 

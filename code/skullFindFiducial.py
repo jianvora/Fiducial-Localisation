@@ -18,6 +18,7 @@ from skullReconstruct import *
 from genFiducialPC import *
 import copy
 import time
+from joblib import Parallel, delayed
 
 
 vFiducial = np.array([])
@@ -209,10 +210,9 @@ def genPatch(surfaceVoxelCoord, normals, point, neighbor, PixelSpacing):
         neigh.fit(patch)
         distances, indices = neigh.kneighbors(
             point.reshape(1, -1), return_distance=True)
-        center = patch[indices][0, 0]
+        center = point
         orignalPatch = copy.deepcopy(patch)
         patch -= center
-        point -= center
         norm = normals[neighbor[indices]].reshape(-1, 3)
         norm = np.sum(norm, axis=0) / 4
         norm = norm.reshape(1, -1)
@@ -312,7 +312,7 @@ def filterFiducials(cost, points, numMarkers):
     filteredIndices = []
 
     # Perform Mean Shift Clustering
-    meanShift = MeanShift(bandwidth=10)
+    meanShift = MeanShift(bandwidth=20)
     # params = meanShift.get_params()
     # bw = params['bandwidth']
     # meanShift.set_params(bandwidth=bw/10.0)
@@ -328,7 +328,8 @@ def filterFiducials(cost, points, numMarkers):
 
     return filteredIndices
 
-
+sigma = 100.0  # A large value
+points_thresh = 400  # A threshold on number of points in a typical patch
 def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     """
     This routine performs template matching between a patch around each
@@ -336,6 +337,12 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     model. It returns the cost (normalised distance from ICP) and the patches.
     """
     global vFiducial, fFiducial, ConstPixelSpacing
+
+    global globalPointCloud
+    global globalNormalstotal
+    globalPointCloud = pointCloud
+    globalNormalstotal = normalstotal
+
     start_time = time.time()
     ConstPixelSpacing = PixelSpacing
 
@@ -344,8 +351,13 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     alignedPatches = []
     patches = []
     point = np.float64(copy.deepcopy(poi)) * ConstPixelSpacing
-    neighbor1 = getNeighborVoxel(pointCloud, point, r=7.75)
+    neighbor1 = getNeighborVoxel(pointCloud, point, r=6)
     neighbor1 = np.array(neighbor1)
+
+    # results = list(Parallel(n_jobs=2)(delayed(computePointCloudDistance)(pnt, n_pnt) for pnt, n_pnt in zip(point, neighbor1)))
+    # cost = np.array([result[0] for result in results], dtype=np.float64)
+    # count = np.count_nonzero([result[1] for result in results])
+
     cost = np.array([], dtype=np.float64)
     count = 0
     sigma = 100.0  # A large value
@@ -378,6 +390,18 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
 
     return cost, neighbor1  # , patches
 
+
+def computePointCloudDistance(point, neighbor_pnt):
+    cost = sigma
+    count = 0
+    alignedPatch, _, _ = genPatch(globalPointCloud, globalNormalstotal, point,
+        np.array(neighbor_pnt).astype(int), ConstPixelSpacing)
+    if(len(alignedPatch) > points_thresh):
+        cost = icp(alignedPatch, vFiducial, max_iterations=1)[1]
+    else:
+        count = 1
+
+    return cost, count
 
 def visualiseFiducials(cost, neighbourIndices, points, pointCloud, verts, faces,ijk_to_xyz,ConstPixelSpacing, num_markers=100, show_skull=True, show_markers=True):
     """

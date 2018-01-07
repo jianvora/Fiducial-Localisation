@@ -56,10 +56,10 @@ def findSurfaceNormals(surfaceVoxels, voxelData, ConstPixelSpacing):
     surfaceNormals = surfaceNormals.reshape(
         surfaceNormals.shape[0], surfaceNormals.shape[2])
 
-    surfaceNormals_out, surfaceVoxels_out = getOutwardNormals(
-        surfaceNormals, surfaceVoxels)
+    # surfaceNormals, surfaceVoxels = getOutwardNormals(
+    #     surfaceNormals, surfaceVoxels)
 
-    return surfaceNormals_out, surfaceVoxels_out, verts, faces
+    return surfaceNormals, surfaceVoxels, verts, faces
 
 
 def getSurfaceMesh(voxelData, ConstPixelSpacing):

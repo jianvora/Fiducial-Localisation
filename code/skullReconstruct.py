@@ -132,11 +132,13 @@ def get3DRecon(data, path):
         # RefDs.PixelSpacing[1]), float(RefDs.SliceThickness))
 
     series = pydicom_series.read_files(path, False, True) # second to not show progress bar, third to retrieve data
-    voxel_ndarray = series[1].get_pixel_array()
+    # print len(series)
 
-    # info = series[1].info
+    seiesNum = 1
+    voxel_ndarray = series[seiesNum].get_pixel_array()
+    print voxel_ndarray.shape
 
-    info = series[2].info
+    info = series[seiesNum].info
     ijk_to_xyz = GenerateTransform(info)
     print(ijk_to_xyz)
     # _, ijk_to_xyz = dicom_numpy.combine_slices(data)
