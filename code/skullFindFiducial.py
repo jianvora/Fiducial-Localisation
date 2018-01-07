@@ -291,9 +291,17 @@ def genFiducialModel(PixelSpacing):
     return vertFiducial, fFiducial, nFiducial
 
 
-def filterFiducials(cost, points, numMarkers):
+def filterFiducials(cost, points, threshold):
     points = np.float64(copy.deepcopy(points)) * ConstPixelSpacing
     cost = np.array(cost)
+
+    numMarkers = 0
+    for c in cost:
+        if c<threshold:
+            numMarkers = numMarkers+1
+
+    print "numMarkers", numMarkers
+
     bestIndices = np.argsort(cost)
     bestIndices = bestIndices[:numMarkers]
     # for i in range(bestIndices.shape[0]):
@@ -303,6 +311,7 @@ def filterFiducials(cost, points, numMarkers):
     # print cost.shape
     # print np.max(bestIndices)
     bestCosts = cost[bestIndices]
+    print bestCosts
     # points = points[bestIndices,:]
     # bestCosts = bestCosts[:numMarkers]
     # print bestIndices.shape
@@ -312,7 +321,7 @@ def filterFiducials(cost, points, numMarkers):
     filteredIndices = []
 
     # Perform Mean Shift Clustering
-    meanShift = MeanShift(bandwidth=20)
+    meanShift = MeanShift(bandwidth=12)
     # params = meanShift.get_params()
     # bw = params['bandwidth']
     # meanShift.set_params(bandwidth=bw/10.0)
@@ -403,13 +412,13 @@ def computePointCloudDistance(point, neighbor_pnt):
 
     return cost, count
 
-def visualiseFiducials(cost, neighbourIndices, points, pointCloud, verts, faces,ijk_to_xyz,ConstPixelSpacing, num_markers=100, show_skull=True, show_markers=True):
+def visualiseFiducials(cost, neighbourIndices, points, pointCloud, verts, faces,ijk_to_xyz,ConstPixelSpacing, threshold=0.001, show_skull=True, show_markers=True):
     """
     Collects the top __ fiducial markers, filters them using the Mean Shift algorithm,
     and then renders with the original 3D scan, on Mayavi for
     visualisation and verification.
     """
-    indices = np.array(filterFiducials(cost, points, num_markers))
+    indices = np.array(filterFiducials(cost, points, threshold))
     # print neighbourIndices.shape
     # print indices.shape
     # fiducialNeighbourIndices = neighbourIndices[indices,:]

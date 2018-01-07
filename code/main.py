@@ -26,8 +26,8 @@ start_time = time.time()
 # PathDicom = "../2016.06.27 PVC Skull Model/Sequential Scan/DICOM/PA1/ST1/SE2"
 # PathDicom = "/Users/Parth/Downloads/09171700"
 # PathDicom = "/Users/ritwickchaudhry/Downloads/2012.09.15 ACRELIC2 CT Scan Data from ACTREC/09171420"
-# PathDicom = "/home/shubham/Github/FiducialLocalisation/data/2012.09.15 ACRELIC2 CT Scan Data from ACTREC/09171420"
-PathDicom = "/home/shubham/Github/FiducialLocalisation/data/2012.09.15 ACRELIC1 CT Scan Data from ACTREC/09171700"
+PathDicom = "/home/shubham/Github/FiducialLocalisation/data/2012.09.15 ACRELIC2 CT Scan Data from ACTREC/09171420"
+# PathDicom = "/home/shubham/Github/FiducialLocalisation/data/2012.09.15 ACRELIC1 CT Scan Data from ACTREC/09171700"
 
 data = readDicomData(PathDicom)
 voxelData, ConstPixelSpacing, ijk_to_xyz = get3DRecon(data, PathDicom)
@@ -72,7 +72,7 @@ print("---- %s seconds ----- Finished comparing with Fiducial Model!" %
       (time.time() - start_time))
 
 # Visualise in Mayavi
-visualiseFiducials(costs, neighbourIndices, surfaceVoxelCoord_sample, surfaceVoxelCoord, verts, faces,ijk_to_xyz,ConstPixelSpacing, num_markers=200)
+visualiseFiducials(costs, neighbourIndices, surfaceVoxelCoord_sample, surfaceVoxelCoord, verts, faces,ijk_to_xyz,ConstPixelSpacing, threshold=0.001)
 
 
 # for i in range(num_markers):
