@@ -209,10 +209,9 @@ def genPatch(surfaceVoxelCoord, normals, point, neighbor, PixelSpacing):
         neigh.fit(patch)
         distances, indices = neigh.kneighbors(
             point.reshape(1, -1), return_distance=True)
-        center = patch[indices][0, 0]
+        center = point
         orignalPatch = copy.deepcopy(patch)
         patch -= center
-        point -= center
         norm = normals[neighbor[indices]].reshape(-1, 3)
         norm = np.sum(norm, axis=0) / 4
         norm = norm.reshape(1, -1)
