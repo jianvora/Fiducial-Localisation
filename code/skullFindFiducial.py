@@ -356,11 +356,13 @@ def checkFiducial(pointCloud, poi, normalstotal, PixelSpacing):
     ConstPixelSpacing = PixelSpacing
 
     if vFiducial.size == 0:
-        vFiducial = genFiducialPC()
+        # vFiducial = genFiducialPC()
+        vFiducial, _, _ = genFiducialModel(ConstPixelSpacing)
+
     alignedPatches = []
     patches = []
     point = np.float64(copy.deepcopy(poi)) * ConstPixelSpacing
-    neighbor1 = getNeighborVoxel(pointCloud, point, r=6)
+    neighbor1 = getNeighborVoxel(pointCloud, point, r=4.8)
     neighbor1 = np.array(neighbor1)
 
     # results = list(Parallel(n_jobs=2)(delayed(computePointCloudDistance)(pnt, n_pnt) for pnt, n_pnt in zip(point, neighbor1)))
